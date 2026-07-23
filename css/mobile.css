@@ -1,0 +1,57 @@
+@media (max-width: 480px) {
+  .app {
+    padding: 12px 12px calc(var(--nav-h) + 24px + var(--safe-bottom));
+  }
+
+  .logo-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .logo h1 {
+    font-size: 1.2rem;
+  }
+
+  .finance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-grid,
+  .weekdays {
+    gap: 4px;
+  }
+
+  .day-cell {
+    border-radius: 10px;
+  }
+
+  .nav-btn span {
+    font-size: 0.62rem;
+  }
+
+  .fab {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+@media (min-width: 768px) {
+  .app {
+    padding-top: 24px;
+  }
+
+  .day-cell {
+    border-radius: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet,
+  .fab {
+    transition: none;
+  }
+}

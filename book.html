@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Записаться · Фокус+</title>
+  <meta name="theme-color" content="#2E2E2E">
+  <meta name="description" content="Онлайн-запись на съёмку">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/calendar.css">
+  <link rel="stylesheet" href="css/book.css">
+</head>
+<body class="book-page">
+  <div class="book-app">
+    <header class="book-hero">
+      <p class="book-brand">Фокус+</p>
+      <h1>Записаться</h1>
+      <p class="book-lead">Выберите свободную дату и время. Чужие записи и суммы не показываются.</p>
+    </header>
+
+    <div id="bookAlert" class="book-alert hidden" role="status"></div>
+
+    <!-- Моя запись -->
+    <section id="myBookingPanel" class="book-panel hidden">
+      <h2>Ваша запись</h2>
+      <div id="myBookingInfo" class="my-booking-info"></div>
+      <div class="book-actions">
+        <button type="button" id="rescheduleBtn" class="save-button">Перенести</button>
+        <button type="button" id="newBookingBtn" class="chip-btn">Новая запись</button>
+      </div>
+      <p id="rescheduleHint" class="muted book-hint"></p>
+    </section>
+
+    <!-- Выбор даты -->
+    <section id="datePanel" class="book-panel hidden">
+      <div class="calendar-top">
+        <button id="bookPrevMonth" class="icon-btn" type="button" aria-label="Предыдущий месяц">‹</button>
+        <h2 id="bookMonthTitle"></h2>
+        <button id="bookNextMonth" class="icon-btn" type="button" aria-label="Следующий месяц">›</button>
+      </div>
+      <div class="weekdays">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+      </div>
+      <div id="bookCalendarGrid" class="calendar-grid"></div>
+      <p class="muted book-hint">Оливковый день — есть свободное время. Крест — день занят.</p>
+    </section>
+
+    <!-- Выбор времени -->
+    <section id="slotsPanel" class="book-panel hidden">
+      <h2>Свободное время <span id="slotsDayLabel" class="muted"></span></h2>
+      <div id="slotsList" class="slots-list"></div>
+    </section>
+
+    <!-- Форма -->
+    <section id="formPanel" class="book-panel hidden">
+      <h2 id="formTitle">Ваши данные</h2>
+      <p id="formSummary" class="form-summary"></p>
+      <form id="bookForm" class="book-form">
+        <label>Имя<input id="bName" type="text" required placeholder="Анна" autocomplete="name"></label>
+        <label>Телефон<input id="bPhone" type="tel" required placeholder="+7 ..." autocomplete="tel"></label>
+        <label>VK <span class="muted">(необязательно)</span>
+          <input id="bVk" type="text" placeholder="vk.com/..." autocomplete="username">
+        </label>
+        <label>Вид съёмки
+          <select id="bType">
+            <option>Индивидуальная</option>
+            <option>Свадебная</option>
+            <option>Фотодень</option>
+            <option>Другое</option>
+          </select>
+        </label>
+        <label>Комментарий
+          <textarea id="bComment" rows="3" placeholder="Пожелания к съёмке"></textarea>
+        </label>
+        <button class="save-button" type="submit" id="bookSubmitBtn">Записаться</button>
+        <button class="chip-btn" type="button" id="backToSlotsBtn">Назад к времени</button>
+      </form>
+    </section>
+
+    <!-- Успех -->
+    <section id="successPanel" class="book-panel hidden">
+      <h2>Вы записаны</h2>
+      <p id="successText" class="form-summary"></p>
+      <p class="muted book-hint">Сохраните ссылку ниже — по ней можно посмотреть или перенести запись.</p>
+      <input id="manageLink" type="text" readonly class="manage-link">
+      <div class="book-actions">
+        <button type="button" id="copyManageLinkBtn" class="chip-btn">Копировать ссылку</button>
+        <button type="button" id="successDoneBtn" class="save-button">Готово</button>
+      </div>
+    </section>
+
+    <footer class="book-footer">
+      <p class="muted">Онлайн-запись · Фокус+</p>
+    </footer>
+  </div>
+
+  <script src="js/storage.js?v=197"></script>
+  <script src="js/cloud-config.js?v=197"></script>
+  <script src="js/sync.js?v=197"></script>
+  <script src="js/calendar.js?v=197"></script>
+  <script src="js/book.js?v=197"></script>
+</body>
+</html>
