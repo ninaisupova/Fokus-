@@ -151,22 +151,17 @@
     return `${h} ч`;
   }
 
-  /** Длительность по умолчанию для вида съёмки */
-  function defaultDurationForType(type) {
-    if (type === 'Фотодень') return 8;
+  /** Длительность по умолчанию для вида съёмки (кабинет) */
+  function defaultDurationForType(_type) {
     return 2;
   }
 
-  function applyTypeDefaults(type, { forceDuration = false } = {}) {
-    const durationEl = $('#fDuration');
-    if (!durationEl) return;
-    if (forceDuration || type === 'Фотодень') {
-      durationEl.value = String(defaultDurationForType(type));
-    }
-    // Фотодень удобнее начинать с начала рабочего дня
-    if (type === 'Фотодень') {
-      const { start } = workHours();
-      fillTimeSelect($('#fTime'), start);
+  function applyTypeDefaults(_type, { forceDuration = false } = {}) {
+    // Для клиентов длительность задаётся в настройках онлайн-записи.
+    // В кабинете вид съёмки больше не меняет часы автоматически.
+    if (forceDuration) {
+      const durationEl = $('#fDuration');
+      if (durationEl && !durationEl.value) durationEl.value = '2';
     }
     checkFormConflict();
   }
@@ -361,9 +356,8 @@
     $('#fDate').value = record?.date || state.selectedDate;
     fillTimeSelect($('#fTime'), record?.time || '12:00');
     const type = $('#fType').value;
-    const defaultDur = defaultDurationForType(type);
     $('#fDuration').value = String(
-      record?.duration != null ? record.duration : defaultDur
+      record?.duration != null ? record.duration : 2
     );
     $('#fLocation').value = record?.location || '';
     $('#fPrice').value = record?.price ?? '';
@@ -377,10 +371,10 @@
     const type = prefill.type || 'Индивидуальная съёмка';
     const duration =
       prefill.duration ??
-      (prefill.kind === 'personal' ? 1 : defaultDurationForType(type));
+      (prefill.kind === 'personal' ? 1 : 2);
     fillRecordForm({
       date: state.selectedDate,
-      time: type === 'Фотодень' ? workHours().start : '12:00',
+      time: '12:00',
       status: prefill.kind === 'personal' ? 'confirmed' : 'pending',
       duration,
       type,
