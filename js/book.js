@@ -4,14 +4,16 @@
   const params = new URLSearchParams(location.search);
   const cloudCode = (params.get('c') || params.get('code') || '').trim();
   const manageToken = (params.get('m') || params.get('token') || '').trim();
+  const dbFromLink = (params.get('db') || '').trim();
 
   const state = {
     data: null,
     cursor: new Date(),
     selectedDate: null,
     selectedTime: null,
-    mode: 'book', // book | reschedule | request
+    mode: 'book',
     myRecord: null,
+    databaseURL: dbFromLink || FocusSync.getDatabaseURL(),
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -317,14 +319,20 @@
   }
 
   async function refreshCloud() {
-    const { data: raw } = await FocusSync.cloudGet(cloudCode);
-    state.data = FocusStorage.migrate(raw);
+    const { data: raw } = await FocusSync.cloudGet(cloudCode, state.databaseURL);
+    state.data = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
     state.myRecord = findMyRecord();
   }
 
   async function commitCloud(mutator) {
     const meta = { deviceId: `client_${FocusStorage.uid().slice(0, 8)}` };
-    const saved = await FocusSync.withCloudLock(cloudCode, mutator, meta);
+    const saved = await FocusSync.withCloudLock(
+      cloudCode,
+      mutator,
+      meta,
+      5,
+      state.databaseURL
+    );
     state.data = saved;
     state.myRecord = findMyRecord();
     return state.data;
@@ -395,7 +403,10 @@
       });
 
       saveMyBooking({ code: cloudCode, id: created.id, token: created.publicToken });
-      const manageUrl = `${location.origin}${location.pathname}?c=${encodeURIComponent(cloudCode)}&m=${encodeURIComponent(created.publicToken)}`;
+      const dbQ = state.databaseURL
+        ? `&db=${encodeURIComponent(state.databaseURL)}`
+        : '';
+      const manageUrl = `${location.origin}${location.pathname}?c=${encodeURIComponent(cloudCode)}&m=${encodeURIComponent(created.publicToken)}${dbQ}`;
       $('#manageLink').value = manageUrl;
       $('#successText').textContent = `${formatDate(created.date)} · ${created.time}`;
       showPanel('success');
@@ -559,11 +570,19 @@
 
   async function init() {
     bind();
+    $('#datePanel')?.classList.add('hidden');
 
     if (!cloudCode) {
-      showAlert('Откройте ссылку от фотографа (в ней должен быть код записи).');
-      showPanel('date');
-      $('#datePanel').classList.add('hidden');
+      showAlert(
+        'Это страница записи для клиентов. Откройте полную ссылку из Настроек фотографа (кнопка «Копировать ссылку»).'
+      );
+      return;
+    }
+
+    if (!state.databaseURL) {
+      showAlert(
+        'В ссылке нет адреса облака. В кабинете: Настройки → сохранить Firebase → заново «Копировать ссылку».'
+      );
       return;
     }
 
@@ -575,6 +594,7 @@
     try {
       showAlert('Загружаем свободные слоты…', true);
       await refreshCloud();
+      if (!state.data) state.data = FocusStorage.migrate({});
       showAlert('');
       renderMyBooking();
       renderCalendar();
@@ -584,7 +604,7 @@
         showPanel(state.myRecord ? 'myAndDate' : 'date');
       }
     } catch (err) {
-      showAlert(err.message || 'Не удалось загрузить календарь. Проверьте ссылку.');
+      showAlert(err.message || 'Не удалось загрузить календарь. Проверьте ссылку и Firebase Rules.');
       $('#datePanel')?.classList.add('hidden');
     }
   }

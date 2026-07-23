@@ -154,8 +154,7 @@
   text-align: center;
 }
 
-.book-footer a {
-  color: var(--muted);
+.book-footer .muted {
   font-size: 0.85rem;
 }
 

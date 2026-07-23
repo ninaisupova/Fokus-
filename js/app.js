@@ -209,9 +209,11 @@
   function bookingLink() {
     const meta = FocusSync.loadMeta();
     if (!meta.enabled || !meta.blobId) return '';
+    const db = FocusSync.getDatabaseURL();
+    if (!db) return '';
     const base = `${location.origin}${location.pathname.replace(/index\.html$/i, '')}`;
     const root = base.endsWith('/') ? base : `${base}/`;
-    return `${root}book.html?c=${encodeURIComponent(meta.blobId)}`;
+    return `${root}book.html?c=${encodeURIComponent(meta.blobId)}&db=${encodeURIComponent(db)}`;
   }
 
   function fillBookingSettings() {
@@ -220,6 +222,8 @@
     const step = $('#bookingSlotStep');
     if (dur) dur.value = String(s.bookingDuration ?? 1);
     if (step) step.value = String(s.bookingSlotStep ?? 60);
+    const fb = $('#firebaseUrlInput');
+    if (fb) fb.value = FocusSync.getDatabaseURL() || '';
     const link = bookingLink();
     const input = $('#bookingLinkDisplay');
     const openBtn = $('#openBookingLinkBtn');
@@ -844,6 +848,18 @@
       persist();
     });
 
+    $('#saveFirebaseUrlBtn')?.addEventListener('click', () => {
+      const url = $('#firebaseUrlInput')?.value.trim();
+      if (!url || !url.includes('http')) {
+        alert('Вставьте ссылку Firebase целиком, она начинается с https://');
+        return;
+      }
+      FocusSync.setDatabaseURL(url);
+      fillBookingSettings();
+      updateSyncStatusUI();
+      alert('Адрес облака сохранён. Теперь нажмите «Создать новый код».');
+    });
+
     $('#enableSyncBtn')?.addEventListener('click', async () => {
       try {
         const result = await FocusSync.enable(state.data);
@@ -908,18 +924,30 @@
     });
 
     $('#copyBookingLinkBtn')?.addEventListener('click', async () => {
+      if (!FocusSync.cloudReady()) {
+        alert('Сначала сохраните адрес Firebase (шаг 1 в Настройках).');
+        return;
+      }
+      const meta = FocusSync.loadMeta();
+      if (!meta.enabled || !meta.blobId) {
+        alert('Сначала нажмите «Создать новый код» (шаг 2).');
+        return;
+      }
       const link = bookingLink();
-      if (!link) {
-        alert('Сначала включите синхронизацию — ссылка строится из кода.');
+      if (!link || !link.includes('book.html')) {
+        alert('Ссылка не собралась. Обновите страницу и попробуйте снова.');
         return;
       }
       fillBookingSettings();
       try {
         await navigator.clipboard.writeText(link);
-        alert('Ссылка «Записаться» скопирована.\nВставьте её в VK или на сайт.');
+        alert(
+          'Ссылка для клиентов скопирована.\n\nВажно: давайте клиентам ИМЕННО её (там book.html).\nНе давайте ссылку на кабинет.\n\n' +
+            link
+        );
       } catch {
         $('#bookingLinkDisplay')?.select();
-        alert('Скопируйте ссылку вручную из поля');
+        alert('Скопируйте ссылку вручную из поля. В ней должно быть слово book.html');
       }
     });
 
@@ -1190,6 +1218,11 @@
   FocusSync.setHandler(() => {
     updateSyncStatusUI();
   });
+
+  // Подставить URL из cloud-config, если в настройках ещё пусто
+  if (FocusSync.getDatabaseURL() && !FocusSync.loadMeta().databaseURL) {
+    FocusSync.setDatabaseURL(FocusSync.getDatabaseURL());
+  }
 
   FocusSync.startAutoSync(
     () => state.data,

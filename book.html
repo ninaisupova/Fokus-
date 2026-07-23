@@ -36,7 +36,7 @@
     </section>
 
     <!-- Выбор даты -->
-    <section id="datePanel" class="book-panel">
+    <section id="datePanel" class="book-panel hidden">
       <div class="calendar-top">
         <button id="bookPrevMonth" class="icon-btn" type="button" aria-label="Предыдущий месяц">‹</button>
         <h2 id="bookMonthTitle"></h2>
@@ -94,11 +94,12 @@
     </section>
 
     <footer class="book-footer">
-      <a href="index.html">Кабинет фотографа</a>
+      <p class="muted">Онлайн-запись · Фокус+</p>
     </footer>
   </div>
 
   <script src="js/storage.js"></script>
+  <script src="js/cloud-config.js"></script>
   <script src="js/sync.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/book.js"></script>

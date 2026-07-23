@@ -138,11 +138,40 @@
       <section class="panel">
         <h2>Настройки</h2>
         <div class="settings-block">
-          <h3 class="subheading">Синхронизация телефон ↔ ПК</h3>
+          <h3 class="subheading">1. Облако (обязательно)</h3>
+          <p class="settings-hint">
+            Старое облако у вас не открывается (Failed to fetch). Нужно один раз подключить Firebase — бесплатно.
+          </p>
+          <ol class="settings-steps">
+            <li>Откройте <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a></li>
+            <li>Войдите через Google</li>
+            <li>Нажмите <strong>Создать проект</strong> → имя например <strong>fokus-plus</strong> → далее, далее</li>
+            <li>В меню слева: <strong>Build → Realtime Database</strong> → <strong>Create Database</strong></li>
+            <li>Выберите регион (можно Europe) → режим <strong>Start in test mode</strong> → Enable</li>
+            <li>Вкладка <strong>Rules</strong> — вставьте правила ниже → Publish</li>
+            <li>Вкладка <strong>Data</strong> — сверху скопируйте ссылку вида https://….firebasedatabase.app</li>
+            <li>Вставьте ссылку в поле ниже → <strong>Сохранить адрес облака</strong></li>
+          </ol>
+          <pre class="rules-box">
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+</pre>
+          <label class="settings-field">Адрес Firebase
+            <input id="firebaseUrlInput" type="url" placeholder="https://....firebasedatabase.app">
+          </label>
+          <div class="pay-shortcuts" style="margin-top:10px">
+            <button type="button" id="saveFirebaseUrlBtn" class="chip-btn">Сохранить адрес облака</button>
+          </div>
+        </div>
+        <div class="settings-block">
+          <h3 class="subheading">2. Синхронизация телефон ↔ ПК</h3>
           <p class="settings-hint">
             Данные всегда сохраняются на устройстве и работают без интернета.
-            Один раз включите синхронизацию и введите тот же код на втором устройстве —
-            записи будут общими, когда есть сеть.
+            После сохранения адреса облака нажмите «Создать новый код» и введите его на втором устройстве.
           </p>
           <p id="syncSettingsStatus" class="sync-settings-status muted">Синхронизация выключена</p>
           <div id="syncCodeWrap" class="sync-code-wrap hidden">
@@ -166,10 +195,10 @@
           </div>
         </div>
         <div class="settings-block">
-          <h3 class="subheading">Онлайн-запись для клиентов</h3>
+          <h3 class="subheading">3. Онлайн-запись для клиентов</h3>
           <p class="settings-hint">
-            Ссылку можно поставить кнопкой в VK или в шапке сайта.
-            Клиенты видят только свободные даты и время — без имён и сумм.
+            Сначала шаги 1 и 2. Потом скопируйте ссылку и вставьте в VK.
+            Клиенты видят только свободные даты и время.
           </p>
           <div class="row-2">
             <label>Длительность записи
@@ -222,7 +251,7 @@
             <span>Очистить все данные</span>
           </button>
         </div>
-        <p class="version-tag">Фокус+ · версия 1.8 · онлайн-запись</p>
+        <p class="version-tag">Фокус+ · версия 1.9 · Firebase</p>
       </section>
     </main>
 
@@ -411,6 +440,7 @@
   </div>
 
   <script src="js/storage.js"></script>
+  <script src="js/cloud-config.js"></script>
   <script src="js/sync.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/app.js"></script>

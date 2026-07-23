@@ -1,12 +1,10 @@
 /* Фокус+ — облачная синхронизация (офлайн-first)
  * Локально: localStorage всегда работает без интернета.
- * В облаке: jsonblob.com — общий код на телефоне и ПК.
+ * Облако: Firebase Realtime Database (надёжнее, чем jsonblob).
  */
 const FocusSync = (() => {
   const META_KEY = 'focusplus_sync_meta';
-  const API = 'https://jsonblob.com/api/jsonBlob';
   const PUSH_DELAY = 3000;
-  const AUTO_SYNC_MS = 180000;
 
   let pushTimer = null;
   let syncing = false;
@@ -20,6 +18,7 @@ const FocusSync = (() => {
       lastSyncAt: '',
       lastError: '',
       dirty: false,
+      databaseURL: '',
     };
   }
 
@@ -56,8 +55,31 @@ const FocusSync = (() => {
     onChange?.(status);
   }
 
+  /** Адрес Firebase: настройки → cloud-config.js → параметр ссылки */
+  function getDatabaseURL(override) {
+    const fromMeta = (loadMeta().databaseURL || '').trim().replace(/\/$/, '');
+    const fromConfig = String(window.FOCUS_CLOUD?.databaseURL || '')
+      .trim()
+      .replace(/\/$/, '');
+    const fromArg = String(override || '')
+      .trim()
+      .replace(/\/$/, '');
+    return fromArg || fromMeta || fromConfig || '';
+  }
+
+  function cloudReady(overrideUrl) {
+    return Boolean(getDatabaseURL(overrideUrl));
+  }
+
   function statusInfo() {
     const meta = loadMeta();
+    if (!cloudReady()) {
+      return {
+        state: 'error',
+        label: 'Нужно подключить облако (см. Настройки)',
+        meta,
+      };
+    }
     if (!meta.enabled || !meta.blobId) {
       return { state: 'off', label: 'Синхронизация выключена', meta };
     }
@@ -130,7 +152,6 @@ const FocusSync = (() => {
         ? { ...localSettings, ...remoteSettings }
         : { ...remoteSettings, ...localSettings };
 
-    // Тема — с текущего устройства
     settings.theme = localSettings.theme || settings.theme || 'light';
 
     return FocusStorage.migrate({
@@ -156,97 +177,123 @@ const FocusSync = (() => {
     };
   }
 
-  async function apiCreate(body) {
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`Создание облака: ${res.status}`);
-    const loc = res.headers.get('Location') || res.headers.get('location') || '';
-    const id = loc.split('/').filter(Boolean).pop() || '';
-    if (!id) throw new Error('Не получен код синхронизации');
-    return id;
+  function cloudPath(blobId, databaseURL) {
+    const base = getDatabaseURL(databaseURL);
+    if (!base) {
+      throw new Error('Не указан адрес облака Firebase. Откройте Настройки и следуйте инструкции.');
+    }
+    const code = encodeURIComponent(String(blobId || '').trim());
+    if (!code) throw new Error('Нет кода синхронизации');
+    return `${base}/focus/${code}.json`;
   }
 
-  async function apiGet(blobId) {
-    const res = await fetch(`${API}/${encodeURIComponent(blobId)}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
-    if (res.status === 404) throw new Error('Код не найден. Проверьте код синхронизации.');
-    if (res.status === 429) throw new Error('Слишком много запросов. Подождите минуту и нажмите «Синхронизировать сейчас».');
+  async function apiGet(blobId, databaseURL) {
+    const url = cloudPath(blobId, databaseURL);
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        mode: 'cors',
+        signal: ctrl?.signal,
+      });
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        throw new Error('Облако не отвечает. Проверьте интернет и Rules в Firebase.');
+      }
+      throw new Error(
+        'Не удалось связаться с облаком. Проверьте интернет и адрес Firebase в Настройках.'
+      );
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Облако закрыто. В Firebase → Rules должны быть разрешены read/write.');
+    }
     if (!res.ok) throw new Error(`Чтение облака: ${res.status}`);
     const data = await res.json();
-    const etag = res.headers.get('ETag') || res.headers.get('etag') || '';
-    return { data, etag };
+    return { data: data || null, etag: '' };
   }
 
-  async function apiPut(blobId, body, etag) {
-    const headers = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    };
-    if (etag) headers['If-Match'] = etag;
-    const res = await fetch(`${API}/${encodeURIComponent(blobId)}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (res.status === 404) throw new Error('Код не найден');
-    if (res.status === 412) {
-      const err = new Error('conflict');
-      err.code = 'conflict';
-      throw err;
-    }
-    if (res.status === 429) throw new Error('Слишком много запросов. Подождите минуту.');
-    if (!res.ok) throw new Error(`Запись в облако: ${res.status}`);
-    const nextEtag = res.headers.get('ETag') || res.headers.get('etag') || '';
-    let data = body;
+  async function apiPut(blobId, body, _etag, databaseURL) {
+    const url = cloudPath(blobId, databaseURL);
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+    let res;
     try {
-      data = await res.json();
-    } catch {
-      /* keep body */
+      res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+        mode: 'cors',
+        signal: ctrl?.signal,
+      });
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        throw new Error('Облако не отвечает при сохранении. Попробуйте ещё раз.');
+      }
+      throw new Error(
+        'Не удалось сохранить в облако. Проверьте интернет и Firebase Rules.'
+      );
+    } finally {
+      if (timer) clearTimeout(timer);
     }
-    return { data, etag: nextEtag };
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Облако закрыто. Откройте правила Firebase (read/write true).');
+    }
+    if (!res.ok) throw new Error(`Запись в облако: ${res.status}`);
+    return { data: body, etag: '' };
   }
 
-  /**
-   * Безопасная запись в облако: читаем → меняем → пишем.
-   * При конфликте (кто-то успел сохранить раньше) — повторяем.
-   */
-  async function withCloudLock(blobId, mutator, meta, maxTries = 5) {
+  async function withCloudLock(blobId, mutator, meta, maxTries = 5, databaseURL) {
     let lastError;
     for (let i = 0; i < maxTries; i += 1) {
-      const { data: raw, etag } = await apiGet(blobId);
-      const current = FocusStorage.migrate(raw);
+      const { data: raw } = await apiGet(blobId, databaseURL);
+      const current = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
       const next = await mutator(current);
       if (!next) return current;
       const body = payloadFrom(next, meta || { deviceId: 'device' });
       try {
-        await apiPut(blobId, body, etag);
-        return FocusStorage.migrate(body);
+        // Повторное чтение перед записью снижает риск затереть чужую запись
+        const { data: freshRaw } = await apiGet(blobId, databaseURL);
+        const fresh = FocusStorage.migrate(freshRaw && typeof freshRaw === 'object' ? freshRaw : {});
+        const merged = mergeData(body, fresh);
+        const finalBody = payloadFrom(merged, meta || { deviceId: 'device' });
+        await apiPut(blobId, finalBody, '', databaseURL);
+        return FocusStorage.migrate(finalBody);
       } catch (err) {
         lastError = err;
-        if (err.code !== 'conflict') throw err;
-        // повтор с свежими данными
+        if (i === maxTries - 1) throw err;
       }
     }
-    throw lastError || new Error('Не удалось сохранить из‑за конфликта');
+    throw lastError || new Error('Не удалось сохранить');
+  }
+
+  function newSyncCode() {
+    const raw = FocusStorage.uid().replace(/-/g, '');
+    return `fp${raw.slice(0, 20)}`;
   }
 
   async function enable(localData) {
     let meta = ensureDeviceId(loadMeta());
+    if (!cloudReady()) {
+      throw new Error('Сначала вставьте адрес Firebase в Настройках (блок «Облако»).');
+    }
     if (!isOnline()) throw new Error('Нужен интернет, чтобы создать синхронизацию');
 
     syncing = true;
     notify(statusInfo());
     try {
+      const blobId = newSyncCode();
       const body = payloadFrom(localData, meta);
-      const blobId = await apiCreate(body);
+      await apiPut(blobId, body, '', meta.databaseURL);
       meta = {
         ...meta,
         enabled: true,
@@ -272,6 +319,9 @@ const FocusSync = (() => {
     let meta = ensureDeviceId(loadMeta());
     const id = String(blobId || '').trim();
     if (!id) throw new Error('Введите код синхронизации');
+    if (!cloudReady()) {
+      throw new Error('Сначала вставьте адрес Firebase в Настройках.');
+    }
     if (!isOnline()) throw new Error('Нужен интернет, чтобы подключить синхронизацию');
 
     syncing = true;
@@ -280,7 +330,9 @@ const FocusSync = (() => {
       const saved = await withCloudLock(
         id,
         (remote) => mergeData(localData, remote),
-        meta
+        meta,
+        5,
+        meta.databaseURL
       );
       FocusStorage.save(saved);
       meta = {
@@ -304,9 +356,24 @@ const FocusSync = (() => {
   }
 
   function disable() {
-    const meta = { ...defaultMeta(), deviceId: loadMeta().deviceId };
+    const meta = loadMeta();
+    const next = {
+      ...defaultMeta(),
+      deviceId: meta.deviceId,
+      databaseURL: meta.databaseURL,
+    };
+    saveMeta(next);
+    notify(statusInfo());
+  }
+
+  function setDatabaseURL(url) {
+    const meta = loadMeta();
+    meta.databaseURL = String(url || '')
+      .trim()
+      .replace(/\/$/, '');
     saveMeta(meta);
     notify(statusInfo());
+    return meta;
   }
 
   function markDirty() {
@@ -328,6 +395,7 @@ const FocusSync = (() => {
   async function push() {
     const meta = loadMeta();
     if (!meta.enabled || !meta.blobId || !isOnline() || syncing) return null;
+    if (!cloudReady()) return null;
 
     syncing = true;
     notify(statusInfo());
@@ -336,7 +404,9 @@ const FocusSync = (() => {
       const saved = await withCloudLock(
         meta.blobId,
         (remote) => mergeData(local, remote),
-        meta
+        meta,
+        5,
+        meta.databaseURL
       );
       FocusStorage.save(saved);
       const next = {
@@ -361,22 +431,23 @@ const FocusSync = (() => {
   async function pull() {
     const meta = loadMeta();
     if (!meta.enabled || !meta.blobId || !isOnline() || syncing) return null;
+    if (!cloudReady()) return null;
 
     syncing = true;
     notify(statusInfo());
     try {
       const local = FocusStorage.load();
-      const { data: raw } = await apiGet(meta.blobId);
-      const remote = FocusStorage.migrate(raw);
-      const merged = mergeData(local, remote);
+      const { data: raw } = await apiGet(meta.blobId, meta.databaseURL);
+      const remote = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
+      let saved = mergeData(local, remote);
 
-      // Если локально были правки — аккуратно записываем merged обратно
-      let saved = merged;
       if (meta.dirty) {
         saved = await withCloudLock(
           meta.blobId,
-          (fresh) => mergeData(merged, fresh),
-          meta
+          (fresh) => mergeData(saved, fresh),
+          meta,
+          5,
+          meta.databaseURL
         );
       }
 
@@ -424,7 +495,6 @@ const FocusSync = (() => {
       if (document.visibilityState === 'visible') run();
     });
 
-    // Чаще, когда вкладка открыта — чтобы онлайн-записи быстрее появлялись
     setInterval(() => {
       if (isOnline() && loadMeta().enabled && document.visibilityState === 'visible') run();
     }, 45000);
@@ -452,9 +522,11 @@ const FocusSync = (() => {
     startAutoSync,
     mergeData,
     withCloudLock,
-    /** Публичная запись: { data, etag } */
     cloudGet: apiGet,
     cloudPut: apiPut,
     payloadFrom,
+    getDatabaseURL,
+    cloudReady,
+    setDatabaseURL,
   };
 })();

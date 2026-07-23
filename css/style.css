@@ -198,12 +198,27 @@ button {
   font-size: 0.88rem;
 }
 
-.settings-field {
-  display: grid;
-  gap: 6px;
-  margin-top: 12px;
-  font-size: 0.88rem;
+.settings-steps {
+  margin: 0 0 12px;
+  padding-left: 1.2rem;
   color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.settings-steps a {
+  color: var(--accent);
+}
+
+.rules-box {
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+  overflow: auto;
+  white-space: pre-wrap;
 }
 
 .settings-field input,
