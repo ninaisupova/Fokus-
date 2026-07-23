@@ -1038,6 +1038,8 @@
       setView('calendar');
       render();
     });
+
+    $('#copyBookingLinkBtn')?.addEventListener('click', async () => {
       if (!FocusSync.cloudReady()) {
         alert('Сначала сохраните адрес Firebase (шаг 1 в Настройках).');
         return;
