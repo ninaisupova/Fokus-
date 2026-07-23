@@ -1329,29 +1329,72 @@
       persist();
       render();
     });
+
+    $('#forceRefreshBtn')?.addEventListener('click', async () => {
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+      } catch (e) {}
+      alert('Кэш сброшен. Сейчас страница перезагрузится.');
+      location.reload(true);
+    });
   }
 
   seedSeenPublicIds();
 
-  FocusSync.setHandler(() => {
-    updateSyncStatusUI();
-  });
-
-  // Подставить URL из cloud-config, если в настройках ещё пусто
-  if (FocusSync.getDatabaseURL() && !FocusSync.loadMeta().databaseURL) {
-    FocusSync.setDatabaseURL(FocusSync.getDatabaseURL());
+  // Сначала кнопки — даже если синхронизация упадёт
+  try {
+    bind();
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка интерфейса. Обновите страницу или очистите кэш браузера.');
   }
 
-  FocusSync.startAutoSync(
-    () => state.data,
-    (data) => {
-      applyCloudData(data, { announce: true });
-    }
-  );
+  try {
+    applyTheme();
+    updateSyncStatusUI();
+    updateNotifyStatus();
+  } catch (err) {
+    console.error(err);
+  }
 
-  bind();
-  applyTheme();
-  updateSyncStatusUI();
-  updateNotifyStatus();
-  render();
+  try {
+    if (typeof FocusSync !== 'undefined') {
+      FocusSync.setHandler(() => {
+        updateSyncStatusUI();
+      });
+
+      if (FocusSync.getDatabaseURL() && !FocusSync.loadMeta().databaseURL) {
+        FocusSync.setDatabaseURL(FocusSync.getDatabaseURL());
+      }
+
+      FocusSync.startAutoSync(
+        () => state.data,
+        (data) => {
+          applyCloudData(data, { announce: true });
+        }
+      );
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
+  try {
+    render();
+  } catch (err) {
+    console.error(err);
+  }
+
+  // Сброс залипших оверлеев
+  try {
+    $('#bookingToast')?.classList.add('hidden');
+    $('#sheetOverlay')?.classList.add('hidden');
+    $$('.bottom-sheet').forEach((el) => el.classList.remove('open'));
+  } catch (err) {}
 })();

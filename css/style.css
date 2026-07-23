@@ -240,10 +240,13 @@ button {
   place-items: center;
   padding: 20px;
   background: rgba(20, 20, 20, 0.45);
+  pointer-events: auto;
 }
 
 .booking-toast.hidden {
-  display: none;
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden;
 }
 
 .booking-toast-card {
@@ -622,7 +625,8 @@ button {
 }
 
 .sheet-overlay.hidden {
-  display: none;
+  display: none !important;
+  pointer-events: none !important;
 }
 
 .bottom-sheet {

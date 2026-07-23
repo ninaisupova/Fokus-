@@ -18,8 +18,9 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((cache) => cache.addAll(ASSETS).catch(() => {}))
   );
 });
 
@@ -37,7 +38,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Облако и CDN — никогда не кэшировать, всегда напрямую в сеть
+  // Сеть напрямую: облако, CDN, и JS/CSS с ?v= (обход старого кэша)
   if (
     url.hostname.includes('jsonblob.com') ||
     url.hostname.includes('firebaseio.com') ||
@@ -45,29 +46,24 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('gstatic.com') ||
     url.hostname.includes('unpkg.com') ||
-    url.hostname.includes('firebase')
+    url.hostname.includes('firebase') ||
+    url.search.includes('v=')
   ) {
-    event.respondWith(fetch(request));
+    event.respondWith(fetch(request).catch(() => caches.match(request)));
     return;
   }
 
-  // Только файлы своего сайта
-  if (url.origin !== self.location.origin) {
-    return;
-  }
+  if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetched = fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || fetched;
-    })
+    fetch(request)
+      .then((response) => {
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });

@@ -252,6 +252,10 @@
             <i data-lucide="trash-2"></i>
             <span>Очистить все данные</span>
           </button>
+          <button type="button" id="forceRefreshBtn" class="settings-row">
+            <i data-lucide="refresh-cw"></i>
+            <span>Починить приложение (сброс кэша)</span>
+          </button>
         </div>
         <p class="version-tag">Фокус+ · версия 1.9 · уведомления</p>
       </section>
@@ -454,16 +458,22 @@
     </div>
   </div>
 
-  <script src="js/storage.js"></script>
-  <script src="js/cloud-config.js"></script>
-  <script src="js/sync.js"></script>
-  <script src="js/calendar.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/storage.js?v=196"></script>
+  <script src="js/cloud-config.js?v=196"></script>
+  <script src="js/sync.js?v=196"></script>
+  <script src="js/calendar.js?v=196"></script>
+  <script src="js/app.js?v=196"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+      window.addEventListener('load', async () => {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) {
+            await reg.update();
+          }
+          await navigator.serviceWorker.register('service-worker.js?v=196');
+        } catch (e) {}
       });
     }
   </script>
