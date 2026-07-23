@@ -1,14 +1,17 @@
-const CACHE = 'focusplus-v17-1';
+const CACHE = 'focusplus-v18-1';
 const ASSETS = [
   './',
   './index.html',
+  './book.html',
   './css/style.css',
   './css/calendar.css',
   './css/mobile.css',
+  './css/book.css',
   './js/storage.js',
   './js/sync.js',
   './js/calendar.js',
   './js/app.js',
+  './js/book.js',
   './manifest.json',
   './icons/icon.svg',
 ];
@@ -33,7 +36,6 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Облачная синхронизация и CDN — всегда из сети (не кэшируем)
   if (
     url.hostname.includes('jsonblob.com') ||
     url.hostname.includes('googleapis.com') ||
@@ -44,7 +46,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Приложение: сначала кэш (офлайн), потом обновление из сети
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetched = fetch(request)

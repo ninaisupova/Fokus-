@@ -405,5 +405,10 @@ const FocusSync = (() => {
     syncNow,
     startAutoSync,
     mergeData,
+    /** Публичная запись: читать облако по коду */
+    cloudGet: apiGet,
+    /** Публичная запись: сохранить облако по коду */
+    cloudPut: apiPut,
+    payloadFrom,
   };
 })();

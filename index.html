@@ -164,6 +164,36 @@
           </div>
         </div>
         <div class="settings-block">
+          <h3 class="subheading">Онлайн-запись для клиентов</h3>
+          <p class="settings-hint">
+            Ссылку можно поставить кнопкой в VK или в шапке сайта.
+            Клиенты видят только свободные даты и время — без имён и сумм.
+          </p>
+          <div class="row-2">
+            <label>Длительность записи
+              <select id="bookingDuration">
+                <option value="0.5">30 мин</option>
+                <option value="1">1 ч</option>
+                <option value="1.5">1.5 ч</option>
+                <option value="2">2 ч</option>
+              </select>
+            </label>
+            <label>Шаг слотов
+              <select id="bookingSlotStep">
+                <option value="60">каждый час</option>
+                <option value="30">каждые 30 мин</option>
+              </select>
+            </label>
+          </div>
+          <label class="settings-field">Ссылка «Записаться»
+            <input id="bookingLinkDisplay" type="text" readonly placeholder="Сначала включите синхронизацию">
+          </label>
+          <div class="pay-shortcuts" style="margin-top:10px">
+            <button type="button" id="copyBookingLinkBtn" class="chip-btn">Копировать ссылку</button>
+            <a id="openBookingLinkBtn" class="chip-btn" href="book.html" target="_blank" rel="noopener">Открыть</a>
+          </div>
+        </div>
+        <div class="settings-block">
           <h3 class="subheading">Рабочие часы</h3>
           <p class="settings-hint">Слоты для записи с шагом 30 минут. Пригодится и для онлайн-записи клиентов.</p>
           <div class="row-2">
@@ -190,7 +220,7 @@
             <span>Очистить все данные</span>
           </button>
         </div>
-        <p class="version-tag">Фокус+ · версия 1.7 · офлайн + синхронизация</p>
+        <p class="version-tag">Фокус+ · версия 1.8 · онлайн-запись</p>
       </section>
     </main>
 
@@ -264,6 +294,7 @@
           <select id="fStatus">
             <option value="pending">Ожидает</option>
             <option value="confirmed">Подтверждена</option>
+            <option value="reschedule_requested">Запрос переноса</option>
             <option value="done">Проведена</option>
             <option value="cancelled">Отмена</option>
           </select>
@@ -349,6 +380,8 @@
       </div>
       <div class="sheet-body actions-list">
         <button type="button" data-action="edit"><i data-lucide="pencil"></i> Редактировать</button>
+        <button type="button" data-action="approve-reschedule" id="approveRescheduleBtn" class="hidden"><i data-lucide="check"></i> Подтвердить перенос</button>
+        <button type="button" data-action="reject-reschedule" id="rejectRescheduleBtn" class="hidden"><i data-lucide="x"></i> Отклонить перенос</button>
         <button type="button" data-action="move"><i data-lucide="calendar-clock"></i> Перенести</button>
         <button type="button" data-action="copy"><i data-lucide="copy"></i> Копировать</button>
         <button type="button" data-action="delete" class="danger"><i data-lucide="trash-2"></i> Удалить</button>

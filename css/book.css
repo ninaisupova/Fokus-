@@ -1,0 +1,165 @@
+/* Фокус+ — публичная страница записи */
+:root {
+  --book-max: 520px;
+}
+
+.book-page {
+  min-height: 100%;
+}
+
+.book-app {
+  width: min(var(--book-max), 100%);
+  margin: 0 auto;
+  padding: 28px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+.book-hero {
+  margin-bottom: 22px;
+}
+
+.book-brand {
+  margin: 0 0 8px;
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.book-hero h1 {
+  margin: 0 0 10px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.book-lead {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+.book-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+
+.book-panel h2 {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+.book-hint {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.book-alert {
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  font-size: 0.92rem;
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+}
+
+.book-alert.is-ok {
+  background: color-mix(in srgb, #3f6b3a 12%, var(--surface));
+  color: #3f6b3a;
+  border-color: color-mix(in srgb, #3f6b3a 25%, transparent);
+}
+
+.slots-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.slot-pick {
+  min-width: 72px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--olive);
+  font-weight: 600;
+}
+
+.slot-pick.is-selected {
+  border-color: var(--graphite);
+  background: var(--olive-strong);
+}
+
+.book-form {
+  display: grid;
+  gap: 12px;
+}
+
+.book-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.book-form input,
+.book-form select,
+.book-form textarea {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.form-summary {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  font-weight: 600;
+}
+
+.book-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.my-booking-info {
+  display: grid;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.manage-link {
+  width: 100%;
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.book-footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.book-footer a {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.book-page .icon-btn {
+  font-size: 1.4rem;
+  line-height: 1;
+}

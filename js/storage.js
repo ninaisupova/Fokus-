@@ -4,7 +4,7 @@
  */
 const FocusStorage = (() => {
   const KEY = 'focusplus_v15';
-  const VERSION = 1.7;
+  const VERSION = 1.8;
 
   const defaultSettings = () => ({
     theme: 'light',
@@ -13,6 +13,10 @@ const FocusStorage = (() => {
     settingsUpdatedAt: '',
     // Этап 2: сколько раз клиент может перенести слот сам
     freeClientReschedules: 1,
+    // Публичная запись
+    bookingDuration: 1,
+    bookingSlotStep: 60,
+    bookingDaysAhead: 60,
   });
 
   const defaultData = () => ({
@@ -168,18 +172,19 @@ const FocusStorage = (() => {
   }
 
   /**
-   * Свободные старты слотов (шаг 30 мин) в рабочих часах.
-   * Публичный вид для клиентов: только время, без имён и сумм.
-   * durationHours — длительность услуги, которую проверяем (по умолчанию 0.5).
+   * Свободные старты слотов в рабочих часах.
+   * Публичный вид: только время, без имён и сумм.
+   * stepMinutes — шаг между предлагаемыми стартами (30 или 60).
    */
-  function getFreeSlots(records, date, workStart, workEnd, durationHours = 0.5) {
+  function getFreeSlots(records, date, workStart, workEnd, durationHours = 0.5, stepMinutes = 30) {
     const workFrom = timeToMinutes(workStart || '10:00');
     const workTo = timeToMinutes(workEnd || '20:00');
     const need = Math.round(Number(durationHours) * 60);
+    const step = Math.max(15, Number(stepMinutes) || 30);
     const occupied = dayIntervals(records, date);
     const free = [];
 
-    for (let t = workFrom; t + need <= workTo; t += 30) {
+    for (let t = workFrom; t + need <= workTo; t += step) {
       const end = t + need;
       const clash = occupied.some((iv) => t < iv.end && end > iv.start);
       if (!clash) free.push(minutesToTime(t));

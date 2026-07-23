@@ -142,6 +142,42 @@
     endEl.innerHTML = allDay.map((t) => `<option value="${t}"${t === end ? ' selected' : ''}>${t}</option>`).join('');
   }
 
+  function openActionsFor(recordId) {
+    state.activeRecordId = recordId;
+    const r = state.data.records.find((x) => x.id === recordId);
+    $('#actionsTitle').textContent = r ? r.name : 'Запись';
+    const needApprove = r?.status === 'reschedule_requested';
+    $('#approveRescheduleBtn')?.classList.toggle('hidden', !needApprove);
+    $('#rejectRescheduleBtn')?.classList.toggle('hidden', !needApprove);
+    if (needApprove && r) {
+      $('#actionsTitle').textContent = `${r.name} → ${r.proposedDate || ''} ${r.proposedTime || ''}`;
+    }
+    openSheet('actionsSheet');
+  }
+
+  function bookingLink() {
+    const meta = FocusSync.loadMeta();
+    if (!meta.enabled || !meta.blobId) return '';
+    const base = `${location.origin}${location.pathname.replace(/index\.html$/i, '')}`;
+    const root = base.endsWith('/') ? base : `${base}/`;
+    return `${root}book.html?c=${encodeURIComponent(meta.blobId)}`;
+  }
+
+  function fillBookingSettings() {
+    const s = state.data.settings;
+    const dur = $('#bookingDuration');
+    const step = $('#bookingSlotStep');
+    if (dur) dur.value = String(s.bookingDuration ?? 1);
+    if (step) step.value = String(s.bookingSlotStep ?? 60);
+    const link = bookingLink();
+    const input = $('#bookingLinkDisplay');
+    const openBtn = $('#openBookingLinkBtn');
+    if (input) input.value = link || '';
+    if (openBtn) {
+      openBtn.href = link || 'book.html';
+    }
+  }
+
   function applyTheme() {
     const theme = state.data.settings.theme || 'light';
     document.documentElement.setAttribute('data-theme', theme);
@@ -315,6 +351,7 @@
         confirmed: 'Подтверждена',
         done: 'Проведена',
         cancelled: 'Отмена',
+        reschedule_requested: 'Запрос переноса',
       }[s] || s
     );
   }
@@ -339,6 +376,7 @@
             ${isPersonal ? '<span class="badge badge-personal">Личное</span>' : ''}
             <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
             ${pay && pay.key !== 'none' ? `<span class="badge badge-pay-${pay.key}">${pay.label}</span>` : ''}
+            ${r.source === 'public' ? '<span class="badge">Онлайн</span>' : ''}
           </div>
         </div>
         <div class="record-meta">
@@ -355,6 +393,11 @@
         </div>`
         }
         ${r.comment ? `<p class="record-comment">${escapeHtml(r.comment)}</p>` : ''}
+        ${
+          r.status === 'reschedule_requested'
+            ? `<p class="record-comment">Клиент просит: ${escapeHtml(r.proposedDate || '')} ${escapeHtml(r.proposedTime || '')}</p>`
+            : ''
+        }
       </article>
     `;
   }
@@ -517,12 +560,7 @@
     }
 
     list.querySelectorAll('.record-card[data-id]').forEach((card) => {
-      card.addEventListener('click', () => {
-        state.activeRecordId = card.dataset.id;
-        const r = state.data.records.find((x) => x.id === state.activeRecordId);
-        $('#actionsTitle').textContent = r ? r.name : 'Запись';
-        openSheet('actionsSheet');
-      });
+      card.addEventListener('click', () => openActionsFor(card.dataset.id));
     });
 
     renderFreeSlots();
@@ -625,18 +663,16 @@
         ? upcoming.map(recordCard).join('')
         : '<div class="empty">Ближайших съёмок нет</div>';
       box.querySelectorAll('.record-card').forEach((card) => {
-        card.addEventListener('click', () => {
-          state.activeRecordId = card.dataset.id;
-          const r = state.data.records.find((x) => x.id === state.activeRecordId);
-          $('#actionsTitle').textContent = r ? r.name : 'Запись';
-          openSheet('actionsSheet');
-        });
+        card.addEventListener('click', () => openActionsFor(card.dataset.id));
       });
     }
   }
 
   function renderSettings() {
-    if (state.view === 'settings') fillWorkHourSelects();
+    if (state.view === 'settings') {
+      fillWorkHourSelects();
+      fillBookingSettings();
+    }
     updateSyncStatusUI();
   }
 
@@ -762,6 +798,7 @@
         updateSyncStatusUI();
         render();
         alert(`Синхронизация создана.\n\nСкопируйте код и введите его на втором устройстве:\n${result.meta.blobId}`);
+        fillBookingSettings();
       } catch (err) {
         updateSyncStatusUI();
         alert(err.message || 'Не удалось создать синхронизацию');
@@ -774,6 +811,7 @@
         const result = await FocusSync.join(code, state.data);
         state.data = result.data;
         updateSyncStatusUI();
+        fillBookingSettings();
         render();
         alert('Устройства связаны. Данные синхронизируются при наличии интернета.');
       } catch (err) {
@@ -820,6 +858,35 @@
       if (!confirm('Отключить синхронизацию на этом устройстве? Локальные данные останутся.')) return;
       FocusSync.disable();
       updateSyncStatusUI();
+      fillBookingSettings();
+    });
+
+    $('#bookingDuration')?.addEventListener('change', (e) => {
+      state.data.settings.bookingDuration = Number(e.target.value);
+      state.data.settings.settingsUpdatedAt = new Date().toISOString();
+      persist();
+    });
+
+    $('#bookingSlotStep')?.addEventListener('change', (e) => {
+      state.data.settings.bookingSlotStep = Number(e.target.value);
+      state.data.settings.settingsUpdatedAt = new Date().toISOString();
+      persist();
+    });
+
+    $('#copyBookingLinkBtn')?.addEventListener('click', async () => {
+      const link = bookingLink();
+      if (!link) {
+        alert('Сначала включите синхронизацию — ссылка строится из кода.');
+        return;
+      }
+      fillBookingSettings();
+      try {
+        await navigator.clipboard.writeText(link);
+        alert('Ссылка «Записаться» скопирована.\nВставьте её в VK или на сайт.');
+      } catch {
+        $('#bookingLinkDisplay')?.select();
+        alert('Скопируйте ссылку вручную из поля');
+      }
     });
 
     $('#recordForm')?.addEventListener('submit', (e) => {
@@ -946,6 +1013,37 @@
       if (action === 'edit') {
         closeSheets();
         openEditRecord(id);
+      } else if (action === 'approve-reschedule') {
+        if (!record.proposedDate || !record.proposedTime) return;
+        if (
+          FocusStorage.hasConflict(state.data.records, {
+            date: record.proposedDate,
+            time: record.proposedTime,
+            duration: record.duration,
+            excludeId: record.id,
+          })
+        ) {
+          alert('Предложенное время уже занято');
+          return;
+        }
+        record.date = record.proposedDate;
+        record.time = record.proposedTime;
+        record.status = 'confirmed';
+        record.clientRescheduleCount = Number(record.clientRescheduleCount || 0) + 1;
+        delete record.proposedDate;
+        delete record.proposedTime;
+        record.updatedAt = new Date().toISOString();
+        persist();
+        closeSheets();
+        render();
+      } else if (action === 'reject-reschedule') {
+        record.status = 'confirmed';
+        delete record.proposedDate;
+        delete record.proposedTime;
+        record.updatedAt = new Date().toISOString();
+        persist();
+        closeSheets();
+        render();
       } else if (action === 'delete') {
         if (confirm('Удалить запись?')) {
           FocusStorage.touchTrash(state.data, 'records', id);

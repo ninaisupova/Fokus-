@@ -188,9 +188,31 @@ button {
   font-size: 0.88rem;
 }
 
-.danger-chip {
-  color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+.settings-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.settings-field input,
+.settings-block .settings-field input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+a.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--text);
 }
 
 .theme-button,
@@ -343,8 +365,8 @@ button {
   color: var(--muted);
 }
 
-.badge-cancelled {
-  color: var(--danger);
+.badge-reschedule_requested {
+  color: #8a6a20;
 }
 
 .empty,
