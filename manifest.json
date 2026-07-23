@@ -1,0 +1,18 @@
+{
+  "name": "Фокус+",
+  "short_name": "Фокус+",
+  "description": "Персональный планировщик фотографа",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F7F4EF",
+  "theme_color": "#2E2E2E",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

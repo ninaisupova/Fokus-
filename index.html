@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Фокус+</title>
+  <meta name="theme-color" content="#2E2E2E">
+  <meta name="description" content="Фокус+ — персональный планировщик фотографа">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@0.469.0"></script>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/calendar.css">
+  <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="logo">
+        <div class="logo-icon"><i data-lucide="camera"></i></div>
+        <div>
+          <h1>Фокус+</h1>
+          <p>Планировщик фотографа</p>
+        </div>
+      </div>
+      <button id="themeButton" class="theme-button" type="button" aria-label="Тема">
+        <i data-lucide="moon"></i>
+      </button>
+    </header>
+    <div id="syncStatusBar" class="sync-status-bar" aria-live="polite">
+      <span id="syncStatusDot" class="sync-dot"></span>
+      <span id="syncStatusText">Локально · офлайн-режим</span>
+    </div>
+
+    <!-- Календарь -->
+    <main id="view-calendar" class="view active">
+      <section class="today-card">
+        <div>
+          <h2>Сегодня</h2>
+          <p id="todayDate"></p>
+        </div>
+        <div id="todayEvents" class="today-events">Пока нет записей</div>
+      </section>
+
+      <section class="calendar-card">
+        <div class="calendar-top">
+          <button id="prevMonth" class="icon-btn" type="button" aria-label="Предыдущий месяц">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <h2 id="monthTitle"></h2>
+          <button id="nextMonth" class="icon-btn" type="button" aria-label="Следующий месяц">
+            <i data-lucide="chevron-right"></i>
+          </button>
+        </div>
+        <div class="calendar-actions">
+          <button id="todayButton" type="button">Сегодня</button>
+        </div>
+        <div class="weekdays">
+          <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </section>
+
+      <section class="day-card">
+        <div class="section-title">
+          <h2>Записи <span id="selectedDayLabel" class="muted"></span></h2>
+          <button id="addRecord" class="icon-btn" type="button" aria-label="Добавить запись">
+            <i data-lucide="plus"></i>
+          </button>
+        </div>
+        <div class="filters" id="recordFilters">
+          <button type="button" data-filter="all" class="chip active">Все</button>
+          <button type="button" data-filter="today" class="chip">Сегодня</button>
+          <button type="button" data-filter="tomorrow" class="chip">Завтра</button>
+          <button type="button" data-filter="no-prepay" class="chip">Без предоплаты</button>
+          <button type="button" data-filter="prepay" class="chip">Предоплата есть</button>
+          <button type="button" data-filter="past" class="chip">Прошедшие</button>
+        </div>
+        <div id="recordsList"></div>
+        <div id="clientFreeSlots" class="client-free-slots"></div>
+      </section>
+    </main>
+
+    <!-- Клиенты -->
+    <main id="view-clients" class="view">
+      <section class="panel">
+        <div class="section-title">
+          <h2>Клиенты</h2>
+          <button id="addClientBtn" class="icon-btn" type="button" aria-label="Новый клиент">
+            <i data-lucide="user-plus"></i>
+          </button>
+        </div>
+        <input id="clientSearch" class="search" type="search" placeholder="Поиск по имени или телефону">
+        <div id="clientsList"></div>
+      </section>
+    </main>
+
+    <!-- Обзор / финансы -->
+    <main id="view-overview" class="view">
+      <section class="panel">
+        <div class="section-title">
+          <h2>Обзор месяца</h2>
+          <span id="financeMonthLabel" class="muted"></span>
+        </div>
+        <div class="finance-grid">
+          <article class="finance-card">
+            <span>Получено предоплат</span>
+            <strong id="statPrepaid">0 ₽</strong>
+          </article>
+          <article class="finance-card">
+            <span>Ожидается</span>
+            <strong id="statExpected">0 ₽</strong>
+          </article>
+          <article class="finance-card">
+            <span>Съёмок</span>
+            <strong id="statCount">0</strong>
+          </article>
+          <article class="finance-card">
+            <span>Доход месяца</span>
+            <strong id="statIncome">0 ₽</strong>
+          </article>
+        </div>
+        <h3 class="subheading">Ближайшие съёмки</h3>
+        <div id="upcomingList"></div>
+      </section>
+    </main>
+
+    <!-- Настройки -->
+    <main id="view-settings" class="view">
+      <section class="panel">
+        <h2>Настройки</h2>
+        <div class="settings-block">
+          <h3 class="subheading">Синхронизация телефон ↔ ПК</h3>
+          <p class="settings-hint">
+            Данные всегда сохраняются на устройстве и работают без интернета.
+            Один раз включите синхронизацию и введите тот же код на втором устройстве —
+            записи будут общими, когда есть сеть.
+          </p>
+          <p id="syncSettingsStatus" class="sync-settings-status muted">Синхронизация выключена</p>
+          <div id="syncCodeWrap" class="sync-code-wrap hidden">
+            <label>Ваш код синхронизации
+              <input id="syncCodeDisplay" type="text" readonly>
+            </label>
+            <button type="button" id="copySyncCodeBtn" class="chip-btn">Копировать код</button>
+          </div>
+          <div id="syncJoinWrap" class="sync-join-wrap">
+            <label>Подключить по коду
+              <input id="syncCodeInput" type="text" placeholder="Вставьте код с другого устройства">
+            </label>
+            <div class="pay-shortcuts">
+              <button type="button" id="joinSyncBtn" class="chip-btn">Подключить</button>
+              <button type="button" id="enableSyncBtn" class="chip-btn">Создать новый код</button>
+            </div>
+          </div>
+          <div class="pay-shortcuts" style="margin-top:10px">
+            <button type="button" id="syncNowBtn" class="chip-btn">Синхронизировать сейчас</button>
+            <button type="button" id="disableSyncBtn" class="chip-btn danger-chip">Отключить</button>
+          </div>
+        </div>
+        <div class="settings-block">
+          <h3 class="subheading">Рабочие часы</h3>
+          <p class="settings-hint">Слоты для записи с шагом 30 минут. Пригодится и для онлайн-записи клиентов.</p>
+          <div class="row-2">
+            <label>Начало
+              <select id="workStart"></select>
+            </label>
+            <label>Конец
+              <select id="workEnd"></select>
+            </label>
+          </div>
+        </div>
+        <div class="settings-list">
+          <button type="button" id="exportDataBtn" class="settings-row">
+            <i data-lucide="download"></i>
+            <span>Экспорт данных (JSON)</span>
+          </button>
+          <label class="settings-row">
+            <i data-lucide="upload"></i>
+            <span>Импорт данных</span>
+            <input type="file" id="importDataInput" accept="application/json" hidden>
+          </label>
+          <button type="button" id="clearDataBtn" class="settings-row danger">
+            <i data-lucide="trash-2"></i>
+            <span>Очистить все данные</span>
+          </button>
+        </div>
+        <p class="version-tag">Фокус+ · версия 1.7 · офлайн + синхронизация</p>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Основное меню">
+      <button type="button" class="nav-btn active" data-view="calendar">
+        <i data-lucide="calendar-days"></i><span>Календарь</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="clients">
+        <i data-lucide="users"></i><span>Клиенты</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="overview">
+        <i data-lucide="chart-column"></i><span>Обзор</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="settings">
+        <i data-lucide="settings-2"></i><span>Настройки</span>
+      </button>
+    </nav>
+
+    <!-- FAB -->
+    <div class="fab-wrap">
+      <div id="fabMenu" class="fab-menu hidden">
+        <button type="button" data-fab="record"><i data-lucide="calendar-plus"></i> Новая запись</button>
+        <button type="button" data-fab="personal"><i data-lucide="lock"></i> Личное дело</button>
+        <button type="button" data-fab="client"><i data-lucide="user-plus"></i> Новый клиент</button>
+        <button type="button" data-fab="note"><i data-lucide="notebook-pen"></i> Заметка</button>
+      </div>
+      <button id="fabButton" class="fab" type="button" aria-label="Быстрые действия">
+        <i data-lucide="plus"></i>
+      </button>
+    </div>
+
+    <!-- Sheet: запись -->
+    <div id="sheetOverlay" class="sheet-overlay hidden"></div>
+    <div id="recordSheet" class="bottom-sheet" aria-hidden="true">
+      <div class="sheet-header">
+        <h2 id="recordSheetTitle">Новая запись</h2>
+        <button id="closeRecordSheet" class="icon-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="recordForm" class="sheet-body">
+        <input type="hidden" id="recordId">
+        <input type="hidden" id="fKind" value="client">
+
+        <div class="kind-toggle" role="group" aria-label="Тип записи">
+          <button type="button" class="kind-btn active" data-kind="client">Клиент</button>
+          <button type="button" class="kind-btn" data-kind="personal">Личное дело</button>
+        </div>
+
+        <div id="clientFields">
+          <label>Имя клиента<input id="fName" type="text" placeholder="Анна"></label>
+          <label>Телефон<input id="fPhone" type="tel" placeholder="+7 ..."></label>
+          <label>VK<input id="fVk" type="text" placeholder="vk.com/..."></label>
+          <label>Вид съёмки
+            <select id="fType">
+              <option>Индивидуальная съёмка</option>
+              <option>Свадьба</option>
+              <option>Love Story</option>
+              <option>Фотодень</option>
+              <option>Семейная</option>
+              <option>Другое</option>
+            </select>
+          </label>
+        </div>
+
+        <label id="personalTitleLabel" class="hidden">Название
+          <input id="fPersonalTitle" type="text" placeholder="Выходной / подготовка">
+        </label>
+
+        <label>Статус
+          <select id="fStatus">
+            <option value="pending">Ожидает</option>
+            <option value="confirmed">Подтверждена</option>
+            <option value="done">Проведена</option>
+            <option value="cancelled">Отмена</option>
+          </select>
+        </label>
+        <div class="row-2">
+          <label>Дата<input id="fDate" type="date" required></label>
+          <label>Время
+            <select id="fTime" required></select>
+          </label>
+        </div>
+        <label>Длительность
+          <select id="fDuration">
+            <option value="0.5">30 мин</option>
+            <option value="1">1 ч</option>
+            <option value="1.5">1.5 ч</option>
+            <option value="2" selected>2 ч</option>
+            <option value="3">3 ч</option>
+            <option value="4">4 ч</option>
+            <option value="6">6 ч</option>
+            <option value="8">8 ч (фотодень)</option>
+          </select>
+        </label>
+        <label>Локация<input id="fLocation" type="text" placeholder="Студия / парк"></label>
+
+        <div id="paymentFields">
+          <div class="row-2">
+            <label>Стоимость, ₽<input id="fPrice" type="number" min="0" step="100" placeholder="0"></label>
+            <label>Предоплата, ₽<input id="fPrepaid" type="number" min="0" step="100" placeholder="0"></label>
+          </div>
+          <div class="pay-shortcuts">
+            <button type="button" id="btnPrepay1000" class="chip-btn">Предоплата 1000 ₽</button>
+            <button type="button" id="btnPayFull" class="chip-btn">Оплачено полностью</button>
+          </div>
+          <p class="remainder">Остаток: <strong id="fRemainder">0 ₽</strong></p>
+        </div>
+
+        <label>Комментарий<textarea id="fComment" rows="3" placeholder="Пожелания, реквизит..."></textarea></label>
+        <p id="conflictHint" class="conflict-hint hidden">Это время уже занято</p>
+        <button class="save-button" type="submit">Сохранить</button>
+      </form>
+    </div>
+
+    <!-- Sheet: клиент -->
+    <div id="clientSheet" class="bottom-sheet" aria-hidden="true">
+      <div class="sheet-header">
+        <h2 id="clientSheetTitle">Новый клиент</h2>
+        <button id="closeClientSheet" class="icon-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="clientForm" class="sheet-body">
+        <input type="hidden" id="clientId">
+        <label>Имя<input id="cName" type="text" required></label>
+        <label>Телефон<input id="cPhone" type="tel"></label>
+        <label>VK<input id="cVk" type="text"></label>
+        <label>Комментарий<textarea id="cComment" rows="3"></textarea></label>
+        <button class="save-button" type="submit">Сохранить</button>
+      </form>
+    </div>
+
+    <!-- Sheet: заметка -->
+    <div id="noteSheet" class="bottom-sheet" aria-hidden="true">
+      <div class="sheet-header">
+        <h2>Новая заметка</h2>
+        <button id="closeNoteSheet" class="icon-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="noteForm" class="sheet-body">
+        <label>Дата<input id="nDate" type="date" required></label>
+        <label>Текст<textarea id="nText" rows="4" required placeholder="Напоминание без блокировки времени"></textarea></label>
+        <button class="save-button" type="submit">Сохранить</button>
+      </form>
+    </div>
+
+    <!-- Действия записи -->
+    <div id="actionsSheet" class="bottom-sheet actions-sheet" aria-hidden="true">
+      <div class="sheet-header">
+        <h2 id="actionsTitle">Запись</h2>
+        <button id="closeActionsSheet" class="icon-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="sheet-body actions-list">
+        <button type="button" data-action="edit"><i data-lucide="pencil"></i> Редактировать</button>
+        <button type="button" data-action="move"><i data-lucide="calendar-clock"></i> Перенести</button>
+        <button type="button" data-action="copy"><i data-lucide="copy"></i> Копировать</button>
+        <button type="button" data-action="delete" class="danger"><i data-lucide="trash-2"></i> Удалить</button>
+      </div>
+    </div>
+
+    <!-- Перенос -->
+    <div id="moveSheet" class="bottom-sheet" aria-hidden="true">
+      <div class="sheet-header">
+        <h2>Перенести запись</h2>
+        <button id="closeMoveSheet" class="icon-btn" type="button" aria-label="Закрыть">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="moveForm" class="sheet-body">
+        <input type="hidden" id="moveRecordId">
+        <label>Новая дата<input id="moveDate" type="date" required></label>
+        <label>Новое время
+          <select id="moveTime" required></select>
+        </label>
+        <p id="moveConflictHint" class="conflict-hint hidden">Это время уже занято</p>
+        <button class="save-button" type="submit">Перенести</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    lucide.createIcons();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
