@@ -171,12 +171,38 @@ const FocusStorage = (() => {
       .sort((a, b) => a.start - b.start);
   }
 
+  function localTodayISO(now = new Date()) {
+    return [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+  }
+
+  /** Дата/время уже в прошлом (запись туда недоступна). */
+  function isSlotInPast(date, time, now = new Date()) {
+    const todayISO = localTodayISO(now);
+    if (!date || date < todayISO) return true;
+    if (date > todayISO) return false;
+    return timeToMinutes(time) <= now.getHours() * 60 + now.getMinutes();
+  }
+
   /**
    * Свободные старты слотов в рабочих часах.
    * Публичный вид: только время, без имён и сумм.
-   * На сегодня прошедшие слоты не предлагаются (если сейчас 12:00 — 12:00 уже нельзя).
+   * По умолчанию: прошлые дни пустые; на сегодня прошедшие часы не предлагаются.
+   * options.blockPast === false — считать слоты без отсечения «сейчас» (для крестов в архиве).
    */
-  function getFreeSlots(records, date, workStart, workEnd, durationHours = 0.5, stepMinutes = 30) {
+  function getFreeSlots(
+    records,
+    date,
+    workStart,
+    workEnd,
+    durationHours = 0.5,
+    stepMinutes = 30,
+    options = {}
+  ) {
+    const blockPast = options.blockPast !== false;
     const workFrom = timeToMinutes(workStart || '10:00');
     const workTo = timeToMinutes(workEnd || '20:00');
     const need = Math.round(Number(durationHours) * 60);
@@ -185,13 +211,12 @@ const FocusStorage = (() => {
     const free = [];
 
     const now = new Date();
-    const todayISO = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('-');
+    const todayISO = localTodayISO(now);
+
+    if (blockPast && date < todayISO) return free;
+
     const nowMinutes =
-      date === todayISO ? now.getHours() * 60 + now.getMinutes() : -1;
+      blockPast && date === todayISO ? now.getHours() * 60 + now.getMinutes() : -1;
 
     for (let t = workFrom; t + need <= workTo; t += step) {
       // Сегодня: слот уже начался или наступил — не предлагать
@@ -206,7 +231,13 @@ const FocusStorage = (() => {
 
   /** День полностью занят (крест), если нет ни одного свободного слота на 30 мин */
   function isDayFullyBooked(records, date, workStart, workEnd) {
-    return getFreeSlots(records, date, workStart, workEnd, 0.5).length === 0;
+    const todayISO = localTodayISO();
+    // Прошлые дни: крест по занятости записями, без отсечения текущего времени
+    return (
+      getFreeSlots(records, date, workStart, workEnd, 0.5, 30, {
+        blockPast: date >= todayISO,
+      }).length === 0
+    );
   }
 
   function dayHasBookings(records, date) {
@@ -263,6 +294,8 @@ const FocusStorage = (() => {
     hasConflict,
     dayIntervals,
     getFreeSlots,
+    isSlotInPast,
+    localTodayISO,
     isDayFullyBooked,
     dayHasBookings,
     paymentStatus,

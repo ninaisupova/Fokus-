@@ -171,6 +171,8 @@
       busyDates: busy,
       partialDates: partial,
       todayISO: today,
+      minDate: today,
+      maxDate: max,
       onSelect: (date) => {
         if (date < today || date > max) {
           showAlert('Эта дата недоступна для записи');
@@ -187,17 +189,6 @@
         renderSlots();
         showPanel('slots');
       },
-    });
-
-    // Блокируем прошлые и слишком дальние дни визуально
-    $('#bookCalendarGrid')?.querySelectorAll('.day-cell').forEach((btn) => {
-      const date = btn.dataset.date;
-      if (!date) return;
-      if (date < today || date > max) {
-        btn.classList.add('is-past');
-        btn.classList.remove('is-free', 'is-partial');
-        btn.disabled = true;
-      }
     });
   }
 
@@ -221,10 +212,15 @@
       slotStep()
     );
 
-    // При переносе своей записи текущий слот тоже доступен
+    // При переносе своей записи текущий слот тоже доступен (если ещё не в прошлом)
     if (state.mode !== 'book' && state.myRecord && state.myRecord.date === state.selectedDate) {
-      if (!free.includes(state.myRecord.time)) {
-        free = [...free, state.myRecord.time].sort();
+      const own = state.myRecord.time;
+      if (
+        own &&
+        !free.includes(own) &&
+        !FocusStorage.isSlotInPast(state.selectedDate, own)
+      ) {
+        free = [...free, own].sort();
       }
     }
 
@@ -342,6 +338,13 @@
     e.preventDefault();
     if (!state.selectedDate || !state.selectedTime) return;
 
+    if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
+      showAlert('Нельзя записаться на прошедшую дату или время');
+      renderSlots();
+      showPanel('slots');
+      return;
+    }
+
     const name = $('#bName').value.trim();
     const phone = $('#bPhone').value.trim();
     const vk = $('#bVk').value.trim();
@@ -360,6 +363,9 @@
     try {
       let created = null;
       await commitCloud((data) => {
+        if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
+          throw new Error('Нельзя записаться на прошедшую дату или время');
+        }
         const { workStart, workEnd } = data.settings;
         const free = FocusStorage.getFreeSlots(
           data.records,
@@ -425,6 +431,10 @@
 
   async function confirmReschedule() {
     if (!state.myRecord || !state.selectedDate || !state.selectedTime) return;
+    if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
+      showAlert('Нельзя перенести на прошедшую дату или время');
+      return;
+    }
     if (!canSelfReschedule(state.myRecord)) {
       state.mode = 'request';
       await submitRescheduleRequest();
@@ -438,7 +448,22 @@
         if (!record || record.publicToken !== state.myRecord.publicToken) {
           throw new Error('Запись не найдена');
         }
+        if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
+          throw new Error('Нельзя перенести на прошедшую дату или время');
+        }
         const excludeId = record.id;
+        const { workStart, workEnd } = data.settings;
+        const free = FocusStorage.getFreeSlots(
+          data.records.filter((r) => r.id !== excludeId),
+          state.selectedDate,
+          workStart,
+          workEnd,
+          record.duration || duration(),
+          slotStep()
+        );
+        if (!free.includes(state.selectedTime)) {
+          throw new Error('Это время уже занято или недоступно');
+        }
         if (
           FocusStorage.hasConflict(data.records, {
             date: state.selectedDate,
@@ -472,11 +497,18 @@
 
   async function submitRescheduleRequest() {
     if (!state.myRecord || !state.selectedDate || !state.selectedTime) return;
+    if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
+      showAlert('Нельзя перенести на прошедшую дату или время');
+      return;
+    }
     try {
       await commitCloud((data) => {
         const record = data.records.find((r) => r.id === state.myRecord.id);
         if (!record || record.publicToken !== state.myRecord.publicToken) {
           throw new Error('Запись не найдена');
+        }
+        if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
+          throw new Error('Нельзя перенести на прошедшую дату или время');
         }
         if (
           FocusStorage.hasConflict(data.records, {

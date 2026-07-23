@@ -70,6 +70,8 @@ const FocusCalendar = (() => {
     busyDates,
     partialDates,
     todayISO,
+    minDate,
+    maxDate,
     onSelect,
   }) {
     if (titleEl) titleEl.textContent = `${MONTHS[month]} ${year}`;
@@ -77,6 +79,8 @@ const FocusCalendar = (() => {
 
     const partial = partialDates || new Set();
     const cells = buildMonthCells(year, month);
+    const min = minDate || null;
+    const max = maxDate || null;
     gridEl.innerHTML = '';
 
     cells.forEach((cell) => {
@@ -94,10 +98,12 @@ const FocusCalendar = (() => {
       const isToday = cell.date === todayISO;
       const isSelected = cell.date === selectedDate;
       const isPast = cell.date < todayISO;
+      const outOfRange =
+        (min && cell.date < min) || (max && cell.date > max);
 
       // Крест — только если день заполнен целиком (нет свободных часов для клиентов)
       if (fullyBusy) btn.classList.add('is-busy');
-      else if (cell.inMonth && !isPast) {
+      else if (cell.inMonth && !isPast && !outOfRange) {
         btn.classList.add('is-free');
         if (partlyBusy) btn.classList.add('is-partial');
       }
@@ -105,8 +111,17 @@ const FocusCalendar = (() => {
       if (isToday) btn.classList.add('is-today');
       if (isSelected) btn.classList.add('is-selected');
       if (isPast) btn.classList.add('is-past');
+      // Блокировка только по min/max (публичная запись); в кабинете прошлые дни кликабельны
+      if (outOfRange) {
+        btn.classList.add('is-past');
+        btn.classList.remove('is-free', 'is-partial');
+        btn.disabled = true;
+      }
 
-      btn.addEventListener('click', () => onSelect?.(cell.date));
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        onSelect?.(cell.date);
+      });
       gridEl.appendChild(btn);
     });
   }
