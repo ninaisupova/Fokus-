@@ -23,15 +23,101 @@
     updateSyncStatusUI();
   }
 
+  const SEEN_KEY = 'focusplus_seen_public';
+
+  function loadSeenPublic() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveSeenPublic(set) {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...set].slice(-200)));
+  }
+
+  function formatRuShort(iso, time) {
+    try {
+      const d = FocusCalendar.parseISODate(iso);
+      const date = d.toLocaleDateString('ru-RU', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      });
+      return `${date} · ${time}`;
+    } catch {
+      return `${iso} ${time}`;
+    }
+  }
+
+  function updateNotifyStatus() {
+    const el = $('#notifyStatus');
+    if (!el || !('Notification' in window)) {
+      if (el) el.textContent = 'Этот браузер не поддерживает уведомления.';
+      return;
+    }
+    const p = Notification.permission;
+    if (p === 'granted') el.textContent = 'Уведомления включены (и когда вкладка свёрнута).';
+    else if (p === 'denied') el.textContent = 'Уведомления запрещены в настройках браузера.';
+    else el.textContent = 'Можно включить системные уведомления кнопкой выше.';
+  }
+
+  function showBrowserNotify(record) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const n = new Notification('Новая запись · Фокус+', {
+        body: `${record.name} · ${formatRuShort(record.date, record.time)} · ${record.type || ''}`,
+        tag: `booking-${record.id}`,
+        renotify: true,
+      });
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+    } catch {
+      /* ignore */
+    }
+  }
+
+  let toastRecordId = null;
+
+  function hideBookingToast() {
+    $('#bookingToast')?.classList.add('hidden');
+    toastRecordId = null;
+  }
+
+  function showBookingToast(record) {
+    toastRecordId = record.id;
+    const title = $('#bookingToastTitle');
+    const body = $('#bookingToastBody');
+    if (title) title.textContent = record.name || 'Клиент записался';
+    if (body) {
+      body.textContent = `${formatRuShort(record.date, record.time)}\n${record.type || ''}${
+        record.phone ? `\n${record.phone}` : ''
+      }`;
+      body.style.whiteSpace = 'pre-line';
+    }
+    $('#bookingToast')?.classList.remove('hidden');
+    showBrowserNotify(record);
+  }
+
   function applyCloudData(data, { announce = false } = {}) {
     const beforeIds = new Set(state.data.records.map((r) => r.id));
+    const seen = loadSeenPublic();
     state.data = data;
-    const freshPublic = data.records.filter(
-      (r) => r.source === 'public' && !beforeIds.has(r.id) && r.status !== 'cancelled'
+
+    const brandNew = data.records.filter(
+      (r) =>
+        r.source === 'public' &&
+        r.status !== 'cancelled' &&
+        !beforeIds.has(r.id) &&
+        !seen.has(r.id)
     );
-    if (freshPublic.length) {
-      const newest = [...freshPublic].sort((a, b) =>
-        `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`)
+
+    if (brandNew.length) {
+      const newest = [...brandNew].sort((a, b) =>
+        (b.createdAt || `${b.date}${b.time}`).localeCompare(a.createdAt || `${a.date}${a.time}`)
       )[0];
       state.selectedDate = newest.date;
       state.filter = 'all';
@@ -40,14 +126,25 @@
       );
       const d = FocusCalendar.parseISODate(newest.date);
       state.cursor = new Date(d.getFullYear(), d.getMonth(), 1);
-      if (announce) {
-        alert(
-          `Новая онлайн-запись: ${newest.name} · ${newest.date} ${newest.time}`
-        );
-      }
+      brandNew.forEach((r) => seen.add(r.id));
+      if (announce) showBookingToast(newest);
     }
+
+    data.records.forEach((r) => {
+      if (r.source === 'public') seen.add(r.id);
+    });
+    saveSeenPublic(seen);
+
     render();
-    return freshPublic;
+    return brandNew;
+  }
+
+  function seedSeenPublicIds() {
+    const seen = loadSeenPublic();
+    state.data.records.forEach((r) => {
+      if (r.source === 'public') seen.add(r.id);
+    });
+    saveSeenPublic(seen);
   }
 
   async function runManualSync({ quiet = false } = {}) {
@@ -62,7 +159,7 @@
     }
     const data = await FocusSync.syncNow();
     if (data) {
-      const fresh = applyCloudData(data, { announce: !quiet });
+      const fresh = applyCloudData(data, { announce: true });
       if (!quiet && !fresh.length) alert('Синхронизация выполнена. Новых онлайн-записей нет.');
       return data;
     }
@@ -723,6 +820,7 @@
     if (state.view === 'settings') {
       fillWorkHourSelects();
       fillBookingSettings();
+      updateNotifyStatus();
     }
     updateSyncStatusUI();
   }
@@ -917,7 +1015,29 @@
       persist();
     });
 
-    $('#copyBookingLinkBtn')?.addEventListener('click', async () => {
+    $('#enableNotifyBtn')?.addEventListener('click', async () => {
+      if (!('Notification' in window)) {
+        alert('Этот браузер не поддерживает уведомления');
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      updateNotifyStatus();
+      if (perm === 'granted') {
+        alert('Готово. Когда кто-то запишется, придёт уведомление.');
+      } else {
+        alert('Разрешение не выдано. Можно пользоваться всплывающим окном внутри приложения.');
+      }
+    });
+
+    $('#bookingToastClose')?.addEventListener('click', hideBookingToast);
+    $('#bookingToast')?.addEventListener('click', (e) => {
+      if (e.target === $('#bookingToast')) hideBookingToast();
+    });
+    $('#bookingToastOpen')?.addEventListener('click', () => {
+      hideBookingToast();
+      setView('calendar');
+      render();
+    });
       if (!FocusSync.cloudReady()) {
         alert('Сначала сохраните адрес Firebase (шаг 1 в Настройках).');
         return;
@@ -1209,6 +1329,8 @@
     });
   }
 
+  seedSeenPublicIds();
+
   FocusSync.setHandler(() => {
     updateSyncStatusUI();
   });
@@ -1228,5 +1350,6 @@
   bind();
   applyTheme();
   updateSyncStatusUI();
+  updateNotifyStatus();
   render();
 })();

@@ -497,7 +497,7 @@ const FocusSync = (() => {
 
     setInterval(() => {
       if (isOnline() && loadMeta().enabled && document.visibilityState === 'visible') run();
-    }, 45000);
+    }, 20000);
 
     if (isOnline() && loadMeta().enabled) {
       setTimeout(run, 500);

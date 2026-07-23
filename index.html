@@ -220,9 +220,11 @@
             <input id="bookingLinkDisplay" type="text" readonly placeholder="Сначала включите синхронизацию">
           </label>
           <div class="pay-shortcuts" style="margin-top:10px">
+            <button type="button" id="enableNotifyBtn" class="chip-btn">Включить уведомления</button>
             <button type="button" id="copyBookingLinkBtn" class="chip-btn">Копировать ссылку</button>
             <a id="openBookingLinkBtn" class="chip-btn" href="book.html" target="_blank" rel="noopener">Открыть</a>
           </div>
+          <p id="notifyStatus" class="settings-hint"></p>
         </div>
         <div class="settings-block">
           <h3 class="subheading">Рабочие часы</h3>
@@ -251,7 +253,7 @@
             <span>Очистить все данные</span>
           </button>
         </div>
-        <p class="version-tag">Фокус+ · версия 1.9 · Firebase</p>
+        <p class="version-tag">Фокус+ · версия 1.9 · уведомления</p>
       </section>
     </main>
 
@@ -436,6 +438,19 @@
         <p id="moveConflictHint" class="conflict-hint hidden">Это время уже занято</p>
         <button class="save-button" type="submit">Перенести</button>
       </form>
+    </div>
+
+    <!-- Уведомление о новой онлайн-записи -->
+    <div id="bookingToast" class="booking-toast hidden" role="alertdialog" aria-modal="true" aria-labelledby="bookingToastTitle">
+      <div class="booking-toast-card">
+        <p class="booking-toast-eyebrow">Новая запись</p>
+        <h2 id="bookingToastTitle">Клиент записался</h2>
+        <p id="bookingToastBody" class="booking-toast-body"></p>
+        <div class="booking-toast-actions">
+          <button type="button" id="bookingToastOpen" class="save-button">Открыть день</button>
+          <button type="button" id="bookingToastClose" class="chip-btn">Закрыть</button>
+        </div>
+      </div>
     </div>
   </div>
 
