@@ -125,6 +125,16 @@ button {
   border: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.82rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sync-status-action {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.78rem;
 }
 
 .sync-dot {

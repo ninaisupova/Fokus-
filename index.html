@@ -33,10 +33,11 @@
         <i data-lucide="moon"></i>
       </button>
     </header>
-    <div id="syncStatusBar" class="sync-status-bar" aria-live="polite">
+    <button type="button" id="syncStatusBar" class="sync-status-bar" aria-live="polite" title="Нажмите, чтобы синхронизировать">
       <span id="syncStatusDot" class="sync-dot"></span>
       <span id="syncStatusText">Локально · офлайн-режим</span>
-    </div>
+      <span class="sync-status-action">Обновить</span>
+    </button>
 
     <!-- Календарь -->
     <main id="view-calendar" class="view active">
@@ -78,6 +79,7 @@
           <button type="button" data-filter="all" class="chip active">Все</button>
           <button type="button" data-filter="today" class="chip">Сегодня</button>
           <button type="button" data-filter="tomorrow" class="chip">Завтра</button>
+          <button type="button" data-filter="online" class="chip">Онлайн</button>
           <button type="button" data-filter="no-prepay" class="chip">Без предоплаты</button>
           <button type="button" data-filter="prepay" class="chip">Предоплата есть</button>
           <button type="button" data-filter="past" class="chip">Прошедшие</button>

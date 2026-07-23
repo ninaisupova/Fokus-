@@ -23,6 +23,57 @@
     updateSyncStatusUI();
   }
 
+  function applyCloudData(data, { announce = false } = {}) {
+    const beforeIds = new Set(state.data.records.map((r) => r.id));
+    state.data = data;
+    const freshPublic = data.records.filter(
+      (r) => r.source === 'public' && !beforeIds.has(r.id) && r.status !== 'cancelled'
+    );
+    if (freshPublic.length) {
+      const newest = [...freshPublic].sort((a, b) =>
+        `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`)
+      )[0];
+      state.selectedDate = newest.date;
+      state.filter = 'all';
+      $$('#recordFilters .chip').forEach((c) =>
+        c.classList.toggle('active', c.dataset.filter === 'all')
+      );
+      const d = FocusCalendar.parseISODate(newest.date);
+      state.cursor = new Date(d.getFullYear(), d.getMonth(), 1);
+      if (announce) {
+        alert(
+          `Новая онлайн-запись: ${newest.name} · ${newest.date} ${newest.time}`
+        );
+      }
+    }
+    render();
+    return freshPublic;
+  }
+
+  async function runManualSync({ quiet = false } = {}) {
+    if (!FocusSync.isOnline()) {
+      if (!quiet) alert('Нет интернета. Локальные данные сохранены.');
+      return null;
+    }
+    const meta = FocusSync.loadMeta();
+    if (!meta.enabled) {
+      if (!quiet) alert('Сначала включите синхронизацию в Настройках.');
+      return null;
+    }
+    const data = await FocusSync.syncNow();
+    if (data) {
+      const fresh = applyCloudData(data, { announce: !quiet });
+      if (!quiet && !fresh.length) alert('Синхронизация выполнена. Новых онлайн-записей нет.');
+      return data;
+    }
+    updateSyncStatusUI();
+    if (!quiet) {
+      const err = FocusSync.loadMeta().lastError;
+      alert(err || 'Не удалось синхронизировать');
+    }
+    return null;
+  }
+
   function updateSyncStatusUI() {
     const info = FocusSync.statusInfo();
     const text = $('#syncStatusText');
@@ -424,6 +475,8 @@
       list = list.filter((r) => r.date === today);
     } else if (state.filter === 'tomorrow') {
       list = list.filter((r) => r.date === tomorrow);
+    } else if (state.filter === 'online') {
+      list = list.filter((r) => r.source === 'public' && r.status !== 'cancelled');
     } else if (state.filter === 'no-prepay') {
       list = list.filter(
         (r) =>
@@ -832,27 +885,8 @@
       }
     });
 
-    $('#syncNowBtn')?.addEventListener('click', async () => {
-      if (!FocusSync.isOnline()) {
-        alert('Нет интернета. Локальные данные сохранены — синхронизация выполнится позже.');
-        return;
-      }
-      const meta = FocusSync.loadMeta();
-      if (!meta.enabled) {
-        alert('Сначала создайте или подключите код синхронизации');
-        return;
-      }
-      const data = await FocusSync.syncNow();
-      if (data) {
-        state.data = data;
-        render();
-        alert('Синхронизация выполнена');
-      } else {
-        updateSyncStatusUI();
-        const err = FocusSync.loadMeta().lastError;
-        alert(err || 'Не удалось синхронизировать');
-      }
-    });
+    $('#syncNowBtn')?.addEventListener('click', () => runManualSync());
+    $('#syncStatusBar')?.addEventListener('click', () => runManualSync());
 
     $('#disableSyncBtn')?.addEventListener('click', () => {
       if (!confirm('Отключить синхронизацию на этом устройстве? Локальные данные останутся.')) return;
@@ -1160,8 +1194,7 @@
   FocusSync.startAutoSync(
     () => state.data,
     (data) => {
-      state.data = data;
-      render();
+      applyCloudData(data, { announce: true });
     }
   );
 

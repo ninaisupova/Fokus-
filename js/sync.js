@@ -178,22 +178,64 @@ const FocusSync = (() => {
       headers: { Accept: 'application/json' },
     });
     if (res.status === 404) throw new Error('Код не найден. Проверьте код синхронизации.');
+    if (res.status === 429) throw new Error('Слишком много запросов. Подождите минуту и нажмите «Синхронизировать сейчас».');
     if (!res.ok) throw new Error(`Чтение облака: ${res.status}`);
-    return res.json();
+    const data = await res.json();
+    const etag = res.headers.get('ETag') || res.headers.get('etag') || '';
+    return { data, etag };
   }
 
-  async function apiPut(blobId, body) {
+  async function apiPut(blobId, body, etag) {
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (etag) headers['If-Match'] = etag;
     const res = await fetch(`${API}/${encodeURIComponent(blobId)}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers,
       body: JSON.stringify(body),
     });
     if (res.status === 404) throw new Error('Код не найден');
+    if (res.status === 412) {
+      const err = new Error('conflict');
+      err.code = 'conflict';
+      throw err;
+    }
+    if (res.status === 429) throw new Error('Слишком много запросов. Подождите минуту.');
     if (!res.ok) throw new Error(`Запись в облако: ${res.status}`);
-    return res.json().catch(() => body);
+    const nextEtag = res.headers.get('ETag') || res.headers.get('etag') || '';
+    let data = body;
+    try {
+      data = await res.json();
+    } catch {
+      /* keep body */
+    }
+    return { data, etag: nextEtag };
+  }
+
+  /**
+   * Безопасная запись в облако: читаем → меняем → пишем.
+   * При конфликте (кто-то успел сохранить раньше) — повторяем.
+   */
+  async function withCloudLock(blobId, mutator, meta, maxTries = 5) {
+    let lastError;
+    for (let i = 0; i < maxTries; i += 1) {
+      const { data: raw, etag } = await apiGet(blobId);
+      const current = FocusStorage.migrate(raw);
+      const next = await mutator(current);
+      if (!next) return current;
+      const body = payloadFrom(next, meta || { deviceId: 'device' });
+      try {
+        await apiPut(blobId, body, etag);
+        return FocusStorage.migrate(body);
+      } catch (err) {
+        lastError = err;
+        if (err.code !== 'conflict') throw err;
+        // повтор с свежими данными
+      }
+    }
+    throw lastError || new Error('Не удалось сохранить из‑за конфликта');
   }
 
   async function enable(localData) {
@@ -235,11 +277,12 @@ const FocusSync = (() => {
     syncing = true;
     notify(statusInfo());
     try {
-      const remote = await apiGet(id);
-      const merged = mergeData(localData, FocusStorage.migrate(remote));
-      const body = payloadFrom(merged, meta);
-      await apiPut(id, body);
-      FocusStorage.save(body);
+      const saved = await withCloudLock(
+        id,
+        (remote) => mergeData(localData, remote),
+        meta
+      );
+      FocusStorage.save(saved);
       meta = {
         ...meta,
         enabled: true,
@@ -249,7 +292,7 @@ const FocusSync = (() => {
         lastError: '',
       };
       saveMeta(meta);
-      return { meta, data: body };
+      return { meta, data: saved };
     } catch (err) {
       meta.lastError = err.message || String(err);
       saveMeta(meta);
@@ -290,17 +333,12 @@ const FocusSync = (() => {
     notify(statusInfo());
     try {
       const local = FocusStorage.load();
-      let remote;
-      try {
-        remote = FocusStorage.migrate(await apiGet(meta.blobId));
-      } catch (err) {
-        // Если облако недоступно — оставляем локальные данные
-        throw err;
-      }
-      const merged = mergeData(local, remote);
-      const body = payloadFrom(merged, meta);
-      await apiPut(meta.blobId, body);
-      FocusStorage.save(body);
+      const saved = await withCloudLock(
+        meta.blobId,
+        (remote) => mergeData(local, remote),
+        meta
+      );
+      FocusStorage.save(saved);
       const next = {
         ...meta,
         dirty: false,
@@ -308,7 +346,7 @@ const FocusSync = (() => {
         lastError: '',
       };
       saveMeta(next);
-      return body;
+      return saved;
     } catch (err) {
       const m = loadMeta();
       m.lastError = err.message || String(err);
@@ -328,12 +366,21 @@ const FocusSync = (() => {
     notify(statusInfo());
     try {
       const local = FocusStorage.load();
-      const remote = FocusStorage.migrate(await apiGet(meta.blobId));
+      const { data: raw } = await apiGet(meta.blobId);
+      const remote = FocusStorage.migrate(raw);
       const merged = mergeData(local, remote);
-      const body = payloadFrom(merged, meta);
-      // Если локально были изменения — сразу отправляем merged
-      if (meta.dirty) await apiPut(meta.blobId, body);
-      FocusStorage.save(body);
+
+      // Если локально были правки — аккуратно записываем merged обратно
+      let saved = merged;
+      if (meta.dirty) {
+        saved = await withCloudLock(
+          meta.blobId,
+          (fresh) => mergeData(merged, fresh),
+          meta
+        );
+      }
+
+      FocusStorage.save(saved);
       const next = {
         ...meta,
         dirty: false,
@@ -341,7 +388,7 @@ const FocusSync = (() => {
         lastError: '',
       };
       saveMeta(next);
-      return body;
+      return saved;
     } catch (err) {
       const m = loadMeta();
       m.lastError = err.message || String(err);
@@ -377,14 +424,13 @@ const FocusSync = (() => {
       if (document.visibilityState === 'visible') run();
     });
 
-    // Периодически, если онлайн (редко — из‑за лимитов облака)
+    // Чаще, когда вкладка открыта — чтобы онлайн-записи быстрее появлялись
     setInterval(() => {
-      if (isOnline() && loadMeta().enabled) run();
-    }, AUTO_SYNC_MS);
+      if (isOnline() && loadMeta().enabled && document.visibilityState === 'visible') run();
+    }, 45000);
 
-    // Первая синхронизация
     if (isOnline() && loadMeta().enabled) {
-      setTimeout(run, 800);
+      setTimeout(run, 500);
     }
 
     notify(statusInfo());
@@ -405,9 +451,9 @@ const FocusSync = (() => {
     syncNow,
     startAutoSync,
     mergeData,
-    /** Публичная запись: читать облако по коду */
+    withCloudLock,
+    /** Публичная запись: { data, etag } */
     cloudGet: apiGet,
-    /** Публичная запись: сохранить облако по коду */
     cloudPut: apiPut,
     payloadFrom,
   };

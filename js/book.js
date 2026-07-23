@@ -317,20 +317,15 @@
   }
 
   async function refreshCloud() {
-    const raw = await FocusSync.cloudGet(cloudCode);
+    const { data: raw } = await FocusSync.cloudGet(cloudCode);
     state.data = FocusStorage.migrate(raw);
     state.myRecord = findMyRecord();
   }
 
   async function commitCloud(mutator) {
-    // Свежие данные → правка → сохранение (защита от гонок)
-    await refreshCloud();
-    const next = mutator(state.data);
-    if (!next) return null;
     const meta = { deviceId: `client_${FocusStorage.uid().slice(0, 8)}` };
-    const body = FocusSync.payloadFrom(next, meta);
-    await FocusSync.cloudPut(cloudCode, body);
-    state.data = FocusStorage.migrate(body);
+    const saved = await FocusSync.withCloudLock(cloudCode, mutator, meta);
+    state.data = saved;
     state.myRecord = findMyRecord();
     return state.data;
   }
