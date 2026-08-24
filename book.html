@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Записаться · Фокус+</title>
+  <script>
+    // Без кода ?c= это не клиентская ссылка — открываем кабинет фотографа
+    (function () {
+      try {
+        var q = new URLSearchParams(location.search);
+        if (!q.get('c') && !q.get('code')) {
+          if (location.protocol === 'file:') {
+            location.replace('https://ninaisupova.github.io/Fokus-/');
+          } else {
+            location.replace('index.html');
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="theme-color" content="#2E2E2E">
   <meta name="description" content="Онлайн-запись на съёмку">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -98,10 +113,10 @@
     </footer>
   </div>
 
-  <script src="js/storage.js?v=209"></script>
-  <script src="js/cloud-config.js?v=209"></script>
-  <script src="js/sync.js?v=209"></script>
-  <script src="js/calendar.js?v=209"></script>
-  <script src="js/book.js?v=209"></script>
+  <script src="js/storage.js?v=211"></script>
+  <script src="js/cloud-config.js?v=211"></script>
+  <script src="js/sync.js?v=211"></script>
+  <script src="js/calendar.js?v=211"></script>
+  <script src="js/book.js?v=211"></script>
 </body>
 </html>

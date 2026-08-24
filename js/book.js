@@ -661,9 +661,12 @@
     $('#datePanel')?.classList.add('hidden');
 
     if (!cloudCode) {
-      showAlert(
-        'Это страница записи для клиентов. Откройте полную ссылку из Настроек фотографа (кнопка «Копировать ссылку»).'
-      );
+      // Запасной путь, если редирект в HTML не сработал
+      const cabinet =
+        location.protocol === 'file:'
+          ? 'https://ninaisupova.github.io/Fokus-/'
+          : 'index.html';
+      location.replace(cabinet);
       return;
     }
 
