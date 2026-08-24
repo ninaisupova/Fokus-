@@ -955,6 +955,36 @@ button {
   border: 1px solid var(--line, #e2e0d8);
   font: inherit;
   background: #fafaf7;
+  box-sizing: border-box;
+}
+
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  padding-right: 96px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--accent, #5c6b3a);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.password-toggle:hover {
+  background: rgba(92, 107, 58, 0.08);
 }
 
 .auth-error {

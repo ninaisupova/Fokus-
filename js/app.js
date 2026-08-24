@@ -1438,6 +1438,17 @@
     alert('Ошибка интерфейса. Обновите страницу или очистите кэш браузера.');
   }
 
+  $('#toggleAuthPassword')?.addEventListener('click', () => {
+    const input = $('#authPassword');
+    const btn = $('#toggleAuthPassword');
+    if (!input || !btn) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Скрыть' : 'Показать';
+    btn.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+    btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+  });
+
   $('#authForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const errEl = $('#authError');
