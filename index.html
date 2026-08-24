@@ -19,8 +19,8 @@
   <link rel="stylesheet" href="css/calendar.css">
   <link rel="stylesheet" href="css/mobile.css">
 </head>
-<body class="auth-locked">
-  <div id="authGate" class="auth-gate" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+<body>
+  <div id="authGate" class="auth-gate hidden" aria-modal="true" role="dialog" aria-labelledby="authTitle">
     <div class="auth-card">
       <p class="auth-brand">Фокус+</p>
       <h1 id="authTitle">Вход в кабинет</h1>
@@ -164,9 +164,7 @@
         <h2>Настройки</h2>
         <div class="settings-block">
           <h3 class="subheading">Вход фотографа</h3>
-          <p class="settings-hint">Кабинет защищён email и паролем Firebase.</p>
-          <p id="authUserLabel" class="settings-hint">Не выполнен вход</p>
-          <button type="button" id="logoutBtn" class="chip-btn">Выйти</button>
+          <p class="settings-hint">Сейчас вход по паролю выключен — кабинет открывается сразу, как раньше. Защита — секретный код синхронизации в ссылке.</p>
         </div>
         <div class="settings-block">
           <h3 class="subheading">1. Облако (обязательно)</h3>
@@ -190,14 +188,14 @@
     ".write": false,
     "focus": {
       "$code": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": true,
+        ".write": true
       }
     },
     "v2": {
       "focus": {
         "$code": {
-          "admin": { ".read": "auth != null", ".write": "auth != null" },
+          "admin": { ".read": true, ".write": true },
           "public": { ".read": true, ".write": true }
         }
       }
@@ -205,7 +203,7 @@
   }
 }
 </pre>
-          <p class="settings-hint">Также: Authentication (Email/Password) + Web API Key в js/cloud-config.js — см. FIREBASE_RULES.md</p>
+          <p class="settings-hint">Эти правила — без пароля (как раньше). Код синхронизации не публикуйте отдельно от ссылки записи.</p>
           <label class="settings-field">Адрес Firebase
             <input id="firebaseUrlInput" type="url" placeholder="https://....firebasedatabase.app">
           </label>
@@ -303,7 +301,7 @@
             <span>Починить приложение (сброс кэша)</span>
           </button>
         </div>
-        <p class="version-tag">Фокус+ · версия 2.0 · вход фотографа</p>
+        <p class="version-tag">Фокус+ · версия 2.0 · без обязательного входа</p>
       </section>
     </main>
 
@@ -504,12 +502,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=205"></script>
-  <script src="js/cloud-config.js?v=205"></script>
-  <script src="js/auth.js?v=205"></script>
-  <script src="js/sync.js?v=205"></script>
-  <script src="js/calendar.js?v=205"></script>
-  <script src="js/app.js?v=205"></script>
+  <script src="js/storage.js?v=206"></script>
+  <script src="js/cloud-config.js?v=206"></script>
+  <script src="js/auth.js?v=206"></script>
+  <script src="js/sync.js?v=206"></script>
+  <script src="js/calendar.js?v=206"></script>
+  <script src="js/app.js?v=206"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -519,7 +517,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=205');
+          await navigator.serviceWorker.register('service-worker.js?v=206');
         } catch (e) {}
       });
     }

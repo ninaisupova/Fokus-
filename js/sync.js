@@ -212,8 +212,13 @@ const FocusSync = (() => {
 
   async function authQuery(needAuth) {
     if (!needAuth || typeof FocusAuth === 'undefined') return '';
+    if (FocusAuth.requireAuth && !FocusAuth.requireAuth()) return '';
     const token = await FocusAuth.getIdToken();
     return token ? `?auth=${encodeURIComponent(token)}` : '';
+  }
+
+  function adminAuthRequired() {
+    return typeof FocusAuth !== 'undefined' && FocusAuth.requireAuth() && FocusAuth.isLoggedIn();
   }
 
   async function fetchJson(url, { method = 'GET', body, needAuth = false } = {}) {
@@ -361,7 +366,9 @@ const FocusSync = (() => {
   /** Загрузка admin: /v2/.../admin, иначе legacy /focus/code.json */
   async function apiGetAdmin(blobId, databaseURL) {
     try {
-      const { data } = await fetchJson(adminPath(blobId, databaseURL), { needAuth: true });
+      const { data } = await fetchJson(adminPath(blobId, databaseURL), {
+        needAuth: adminAuthRequired(),
+      });
       if (data && typeof data === 'object' && (data.records || data.settings || data.version)) {
         return { data };
       }
@@ -375,10 +382,9 @@ const FocusSync = (() => {
     }
 
     try {
-      // Legacy читаем с auth, если фотограф вошёл (новые Rules могут требовать auth)
-      const token = typeof FocusAuth !== 'undefined' ? await FocusAuth.getIdToken() : '';
-      const url = legacyPath(blobId, databaseURL);
-      const { data: legacy } = await fetchJson(url, { needAuth: Boolean(token) });
+      const { data: legacy } = await fetchJson(legacyPath(blobId, databaseURL), {
+        needAuth: false,
+      });
       if (legacy && typeof legacy === 'object' && (legacy.records || legacy.settings)) {
         return { data: legacy, fromLegacy: true };
       }
@@ -392,7 +398,7 @@ const FocusSync = (() => {
     return fetchJson(adminPath(blobId, databaseURL), {
       method: 'PUT',
       body,
-      needAuth: true,
+      needAuth: adminAuthRequired(),
     });
   }
 
