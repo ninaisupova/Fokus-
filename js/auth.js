@@ -94,7 +94,14 @@ const FocusAuth = (() => {
       throw new Error('Нет связи с Firebase. Проверьте интернет.');
     }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(mapAuthError(data?.error?.message));
+    if (!res.ok) {
+      const raw =
+        data?.error?.message ||
+        data?.error?.status ||
+        (typeof data?.error === 'string' ? data.error : '') ||
+        `HTTP ${res.status}`;
+      throw new Error(mapAuthError(raw));
+    }
     const session = {
       idToken: data.idToken,
       refreshToken: data.refreshToken,

@@ -39,7 +39,9 @@
         <p id="authError" class="auth-error hidden" role="alert"></p>
         <button type="submit" id="authSubmit" class="save-button">Войти</button>
       </form>
-      <p class="auth-foot muted">Настройка: Firebase → Authentication + apiKey в cloud-config.js<br>Подробнее — файл FIREBASE_RULES.md</p>
+      <p class="auth-foot muted">Версия входа 205 · если ошибка та же — нажмите «Сбросить кэш» ниже</p>
+      <button type="button" id="authClearCacheBtn" class="chip-btn auth-cache-btn">Сбросить кэш и обновить</button>
+      <p class="auth-foot muted">Настройка: Firebase → Authentication (Email/Password) + пользователь в Users</p>
     </div>
   </div>
 
@@ -502,12 +504,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=204"></script>
-  <script src="js/cloud-config.js?v=204"></script>
-  <script src="js/auth.js?v=204"></script>
-  <script src="js/sync.js?v=204"></script>
-  <script src="js/calendar.js?v=204"></script>
-  <script src="js/app.js?v=204"></script>
+  <script src="js/storage.js?v=205"></script>
+  <script src="js/cloud-config.js?v=205"></script>
+  <script src="js/auth.js?v=205"></script>
+  <script src="js/sync.js?v=205"></script>
+  <script src="js/calendar.js?v=205"></script>
+  <script src="js/app.js?v=205"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -517,7 +519,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=204');
+          await navigator.serviceWorker.register('service-worker.js?v=205');
         } catch (e) {}
       });
     }

@@ -1004,6 +1004,11 @@ button {
   color: var(--muted, #6b6b63);
 }
 
+.auth-cache-btn {
+  margin-top: 12px;
+  width: 100%;
+}
+
 body.auth-locked .app {
   visibility: hidden;
   pointer-events: none;
