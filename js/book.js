@@ -39,20 +39,17 @@
   }
 
   function duration() {
-    const fromForm = Number($('#bDurationForm')?.value);
     const fromSlots = Number($('#bDuration')?.value);
-    const val = fromForm > 0 ? fromForm : fromSlots > 0 ? fromSlots : state.selectedDuration;
+    const val = fromSlots > 0 ? fromSlots : state.selectedDuration;
     state.selectedDuration = Number(val) || 1;
     return state.selectedDuration;
   }
 
   function syncDurationSelect() {
     const val = String(state.selectedDuration || settings().bookingDuration || 1);
-    ['#bDuration', '#bDurationForm'].forEach((sel) => {
-      const el = $(sel);
-      if (!el) return;
-      if ([...el.options].some((o) => o.value === val)) el.value = val;
-    });
+    const el = $('#bDuration');
+    if (!el) return;
+    if ([...el.options].some((o) => o.value === val)) el.value = val;
   }
 
   function applyDurationChange(sourceEl) {
@@ -681,7 +678,6 @@
     });
 
     $('#bDuration')?.addEventListener('change', (e) => applyDurationChange(e.target));
-    $('#bDurationForm')?.addEventListener('change', (e) => applyDurationChange(e.target));
 
     const phoneEl = $('#bPhone');
     if (phoneEl) {
