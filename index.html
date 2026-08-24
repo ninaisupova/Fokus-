@@ -4,6 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Фокус+</title>
+  <script>
+    // Двойной клик по index.html в папке → открыть сайт с вашим календарём
+    // (данные на телефоне и сайте общие; file:// — отдельное пустое хранилище)
+    // Для правки кода локально: index.html?dev=1
+    (function () {
+      try {
+        var q = new URLSearchParams(location.search);
+        if (location.protocol === 'file:' && q.get('dev') !== '1') {
+          location.replace('https://ninaisupova.github.io/Fokus-/');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="theme-color" content="#2E2E2E">
   <meta name="description" content="Фокус+ — персональный планировщик фотографа">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,31 +33,7 @@
   <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
-  <!-- Экран входа выключен (requireAuth: false). Оставлен в коде на будущее. -->
-  <div id="authGate" class="auth-gate hidden" style="display:none !important" hidden aria-hidden="true" aria-modal="true" role="dialog" aria-labelledby="authTitle">
-    <div class="auth-card">
-      <p class="auth-brand">Фокус+</p>
-      <h1 id="authTitle">Вход в кабинет</h1>
-      <p class="auth-lead">Только для фотографа. Клиенты записываются по отдельной ссылке.</p>
-      <p id="authHint" class="auth-hint hidden"></p>
-      <form id="authForm" class="auth-form">
-        <label>Email
-          <input id="authEmail" type="email" required autocomplete="username" placeholder="you@email.com">
-        </label>
-        <label>Пароль
-          <span class="password-field">
-            <input id="authPassword" type="password" required autocomplete="current-password" placeholder="••••••••">
-            <button type="button" id="toggleAuthPassword" class="password-toggle" aria-label="Показать пароль" aria-pressed="false">Показать</button>
-          </span>
-        </label>
-        <p id="authError" class="auth-error hidden" role="alert"></p>
-        <button type="submit" id="authSubmit" class="save-button">Войти</button>
-      </form>
-      <p class="auth-foot muted">Версия входа 205 · если ошибка та же — нажмите «Сбросить кэш» ниже</p>
-      <button type="button" id="authClearCacheBtn" class="chip-btn auth-cache-btn">Сбросить кэш и обновить</button>
-      <p class="auth-foot muted">Настройка: Firebase → Authentication (Email/Password) + пользователь в Users</p>
-    </div>
-  </div>
+  <div id="authGate" class="auth-gate hidden" style="display:none !important" hidden aria-hidden="true"></div>
 
   <div class="app" id="appShell">
     <header class="topbar">
@@ -507,12 +496,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=209"></script>
-  <script src="js/cloud-config.js?v=209"></script>
-  <script src="js/auth.js?v=209"></script>
-  <script src="js/sync.js?v=209"></script>
-  <script src="js/calendar.js?v=209"></script>
-  <script src="js/app.js?v=209"></script>
+  <script src="js/storage.js?v=210"></script>
+  <script src="js/cloud-config.js?v=210"></script>
+  <script src="js/auth.js?v=210"></script>
+  <script src="js/sync.js?v=210"></script>
+  <script src="js/calendar.js?v=210"></script>
+  <script src="js/app.js?v=210"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -522,7 +511,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=209');
+          await navigator.serviceWorker.register('service-worker.js?v=210');
         } catch (e) {}
       });
     }
