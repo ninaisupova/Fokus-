@@ -1,4 +1,4 @@
-const CACHE = 'focusplus-v19-8';
+const CACHE = 'focusplus-v20-0';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './css/book.css',
   './js/storage.js',
   './js/cloud-config.js',
+  './js/auth.js',
   './js/sync.js',
   './js/calendar.js',
   './js/app.js',
@@ -38,12 +39,14 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Сеть напрямую: облако, CDN, и JS/CSS с ?v= (обход старого кэша)
+  // Сеть напрямую: облако, Auth, CDN, и JS/CSS с ?v= (обход старого кэша)
   if (
     url.hostname.includes('jsonblob.com') ||
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('firebasedatabase.app') ||
     url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('identitytoolkit.googleapis.com') ||
+    url.hostname.includes('securetoken.googleapis.com') ||
     url.hostname.includes('gstatic.com') ||
     url.hostname.includes('unpkg.com') ||
     url.hostname.includes('firebase') ||

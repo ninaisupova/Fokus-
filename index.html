@@ -20,7 +20,27 @@
   <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
-  <div class="app">
+  <div id="authGate" class="auth-gate hidden" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <p class="auth-brand">Фокус+</p>
+      <h1 id="authTitle">Вход в кабинет</h1>
+      <p class="auth-lead">Только для фотографа. Клиенты записываются по отдельной ссылке.</p>
+      <p id="authHint" class="auth-hint hidden"></p>
+      <form id="authForm" class="auth-form">
+        <label>Email
+          <input id="authEmail" type="email" required autocomplete="username" placeholder="you@email.com">
+        </label>
+        <label>Пароль
+          <input id="authPassword" type="password" required autocomplete="current-password" placeholder="••••••••">
+        </label>
+        <p id="authError" class="auth-error hidden" role="alert"></p>
+        <button type="submit" id="authSubmit" class="save-button">Войти</button>
+      </form>
+      <p class="auth-foot muted">Настройка: Firebase → Authentication + apiKey в cloud-config.js<br>Подробнее — файл FIREBASE_RULES.md</p>
+    </div>
+  </div>
+
+  <div class="app" id="appShell">
     <header class="topbar">
       <div class="logo">
         <div class="logo-icon"><i data-lucide="camera"></i></div>
@@ -138,6 +158,12 @@
       <section class="panel">
         <h2>Настройки</h2>
         <div class="settings-block">
+          <h3 class="subheading">Вход фотографа</h3>
+          <p class="settings-hint">Кабинет защищён email и паролем Firebase.</p>
+          <p id="authUserLabel" class="settings-hint">Не выполнен вход</p>
+          <button type="button" id="logoutBtn" class="chip-btn">Выйти</button>
+        </div>
+        <div class="settings-block">
           <h3 class="subheading">1. Облако (обязательно)</h3>
           <p class="settings-hint">
             Старое облако у вас не открывается (Failed to fetch). Нужно один раз подключить Firebase — бесплатно.
@@ -155,11 +181,26 @@
           <pre class="rules-box">
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": false,
+    ".write": false,
+    "focus": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "v2": {
+      "focus": {
+        "$code": {
+          "admin": { ".read": "auth != null", ".write": "auth != null" },
+          "public": { ".read": true, ".write": true }
+        }
+      }
+    }
   }
 }
 </pre>
+          <p class="settings-hint">Также: Authentication (Email/Password) + Web API Key в js/cloud-config.js — см. FIREBASE_RULES.md</p>
           <label class="settings-field">Адрес Firebase
             <input id="firebaseUrlInput" type="url" placeholder="https://....firebasedatabase.app">
           </label>
@@ -257,7 +298,7 @@
             <span>Починить приложение (сброс кэша)</span>
           </button>
         </div>
-        <p class="version-tag">Фокус+ · версия 1.9 · уведомления</p>
+        <p class="version-tag">Фокус+ · версия 2.0 · вход фотографа</p>
       </section>
     </main>
 
@@ -458,11 +499,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=198"></script>
-  <script src="js/cloud-config.js?v=198"></script>
-  <script src="js/sync.js?v=198"></script>
-  <script src="js/calendar.js?v=198"></script>
-  <script src="js/app.js?v=198"></script>
+  <script src="js/storage.js?v=200"></script>
+  <script src="js/cloud-config.js?v=200"></script>
+  <script src="js/auth.js?v=200"></script>
+  <script src="js/sync.js?v=200"></script>
+  <script src="js/calendar.js?v=200"></script>
+  <script src="js/app.js?v=200"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -472,7 +514,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=198');
+          await navigator.serviceWorker.register('service-worker.js?v=200');
         } catch (e) {}
       });
     }

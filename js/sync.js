@@ -1,6 +1,6 @@
 /* Фокус+ — облачная синхронизация (офлайн-first)
- * Локально: localStorage всегда работает без интернета.
- * Облако: Firebase Realtime Database (надёжнее, чем jsonblob).
+ * Кабинет: /focus/$code/admin (+ auth token)
+ * Клиенты: /focus/$code/public (без пароля)
  */
 const FocusSync = (() => {
   const META_KEY = 'focusplus_sync_meta';
@@ -55,7 +55,6 @@ const FocusSync = (() => {
     onChange?.(status);
   }
 
-  /** Адрес Firebase: настройки → cloud-config.js → параметр ссылки */
   function getDatabaseURL(override) {
     const fromMeta = (loadMeta().databaseURL || '').trim().replace(/\/$/, '');
     const fromConfig = String(window.FOCUS_CLOUD?.databaseURL || '')
@@ -79,6 +78,14 @@ const FocusSync = (() => {
         label: 'Нужно подключить облако (см. Настройки)',
         meta,
       };
+    }
+    if (
+      typeof FocusAuth !== 'undefined' &&
+      FocusAuth.requireAuth() &&
+      FocusAuth.authConfigured() &&
+      !FocusAuth.isLoggedIn()
+    ) {
+      return { state: 'error', label: 'Войдите в кабинет', meta };
     }
     if (!meta.enabled || !meta.blobId) {
       return { state: 'off', label: 'Синхронизация выключена', meta };
@@ -177,29 +184,57 @@ const FocusSync = (() => {
     };
   }
 
-  function cloudPath(blobId, databaseURL) {
+  function baseUrl(databaseURL) {
     const base = getDatabaseURL(databaseURL);
     if (!base) {
       throw new Error('Не указан адрес облака Firebase. Откройте Настройки и следуйте инструкции.');
     }
-    const code = encodeURIComponent(String(blobId || '').trim());
-    if (!code) throw new Error('Нет кода синхронизации');
-    return `${base}/focus/${code}.json`;
+    return base;
   }
 
-  async function apiGet(blobId, databaseURL) {
-    const url = cloudPath(blobId, databaseURL);
+  function encodeCode(blobId) {
+    const code = encodeURIComponent(String(blobId || '').trim());
+    if (!code) throw new Error('Нет кода синхронизации');
+    return code;
+  }
+
+  function adminPath(blobId, databaseURL) {
+    return `${baseUrl(databaseURL)}/v2/focus/${encodeCode(blobId)}/admin.json`;
+  }
+
+  function publicPath(blobId, databaseURL) {
+    return `${baseUrl(databaseURL)}/v2/focus/${encodeCode(blobId)}/public.json`;
+  }
+
+  function legacyPath(blobId, databaseURL) {
+    return `${baseUrl(databaseURL)}/focus/${encodeCode(blobId)}.json`;
+  }
+
+  async function authQuery(needAuth) {
+    if (!needAuth || typeof FocusAuth === 'undefined') return '';
+    const token = await FocusAuth.getIdToken();
+    return token ? `?auth=${encodeURIComponent(token)}` : '';
+  }
+
+  async function fetchJson(url, { method = 'GET', body, needAuth = false } = {}) {
+    const q = await authQuery(needAuth);
+    const full = `${url}${q}`;
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
     let res;
     try {
-      res = await fetch(url, {
-        method: 'GET',
+      const opts = {
+        method,
         headers: { Accept: 'application/json' },
         cache: 'no-store',
         mode: 'cors',
         signal: ctrl?.signal,
-      });
+      };
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      res = await fetch(full, opts);
     } catch (err) {
       if (err?.name === 'AbortError') {
         throw new Error('Облако не отвечает. Проверьте интернет и Rules в Firebase.');
@@ -211,62 +246,223 @@ const FocusSync = (() => {
       if (timer) clearTimeout(timer);
     }
     if (res.status === 401 || res.status === 403) {
-      throw new Error('Облако закрыто. В Firebase → Rules должны быть разрешены read/write.');
+      throw new Error(
+        needAuth
+          ? 'Нет доступа к календарю. Войдите в кабинет и проверьте Rules (см. FIREBASE_RULES.md).'
+          : 'Облако закрыто. Проверьте Firebase Rules.'
+      );
     }
-    if (!res.ok) throw new Error(`Чтение облака: ${res.status}`);
-    const data = await res.json();
-    return { data: data || null, etag: '' };
+    if (!res.ok) throw new Error(`${method === 'PUT' ? 'Запись' : 'Чтение'} облака: ${res.status}`);
+    if (method === 'GET') {
+      const data = await res.json();
+      return { data: data || null };
+    }
+    return { data: body };
   }
 
-  async function apiPut(blobId, body, _etag, databaseURL) {
-    const url = cloudPath(blobId, databaseURL);
-    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
-    let res;
-    try {
-      res = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(body),
-        cache: 'no-store',
-        mode: 'cors',
-        signal: ctrl?.signal,
-      });
-    } catch (err) {
-      if (err?.name === 'AbortError') {
-        throw new Error('Облако не отвечает при сохранении. Попробуйте ещё раз.');
+  function emptyPublic() {
+    return {
+      settings: {},
+      blocks: [],
+      mine: {},
+      inbox: {},
+      publishedAt: '',
+    };
+  }
+
+  function buildPublicMirror(data, prevPublic) {
+    const settings = data.settings || {};
+    const records = Array.isArray(data.records) ? data.records : [];
+    const blocks = records
+      .filter((r) => r && r.status !== 'cancelled')
+      .map((r) => ({
+        id: r.id,
+        date: r.date,
+        time: r.time,
+        duration: Number(r.duration) || 1,
+        status: r.status || 'confirmed',
+      }));
+
+    const mine = { ...(prevPublic?.mine || {}) };
+    records.forEach((r) => {
+      if (!r?.publicToken) return;
+      if (r.status === 'cancelled') {
+        delete mine[r.publicToken];
+        return;
       }
-      throw new Error(
-        'Не удалось сохранить в облако. Проверьте интернет и Firebase Rules.'
-      );
-    } finally {
-      if (timer) clearTimeout(timer);
+      mine[r.publicToken] = {
+        id: r.id,
+        publicToken: r.publicToken,
+        date: r.date,
+        time: r.time,
+        duration: Number(r.duration) || 1,
+        type: r.type || '',
+        status: r.status || 'pending',
+        name: r.name || '',
+        phone: r.phone || '',
+        vk: r.vk || '',
+        comment: r.comment || '',
+        clientRescheduleCount: Number(r.clientRescheduleCount) || 0,
+        proposedDate: r.proposedDate || '',
+        proposedTime: r.proposedTime || '',
+        updatedAt: r.updatedAt || r.createdAt || '',
+      };
+    });
+
+    const adminIds = new Set(records.map((r) => r.id));
+    const inbox = {};
+    Object.entries(prevPublic?.inbox || {}).forEach(([id, rec]) => {
+      if (rec && !adminIds.has(id)) inbox[id] = rec;
+    });
+
+    return {
+      settings: {
+        workStart: settings.workStart || '10:00',
+        workEnd: settings.workEnd || '20:00',
+        bookingDuration: settings.bookingDuration ?? 1,
+        bookingSlotStep: settings.bookingSlotStep ?? 60,
+        bookingDaysAhead: settings.bookingDaysAhead ?? 60,
+        freeClientReschedules: settings.freeClientReschedules ?? 1,
+      },
+      blocks,
+      mine,
+      inbox,
+      publishedAt: new Date().toISOString(),
+    };
+  }
+
+  function mergeInboxIntoAdmin(adminData, publicData) {
+    const inbox = publicData?.inbox || {};
+    let changed = false;
+    Object.values(inbox).forEach((rec) => {
+      if (!rec?.id) return;
+      const idx = adminData.records.findIndex((r) => r.id === rec.id);
+      if (idx < 0) {
+        adminData.records.push(rec);
+        if (rec.name || rec.phone) {
+          FocusStorage.findOrCreateClient(adminData, {
+            name: rec.name,
+            phone: rec.phone,
+            vk: rec.vk,
+          });
+        }
+        changed = true;
+      } else {
+        const local = adminData.records[idx];
+        if ((rec.updatedAt || '') > (local.updatedAt || '')) {
+          adminData.records[idx] = { ...local, ...rec };
+          changed = true;
+        }
+      }
+    });
+    return changed;
+  }
+
+  /** Загрузка admin: /v2/.../admin, иначе legacy /focus/code.json */
+  async function apiGetAdmin(blobId, databaseURL) {
+    try {
+      const { data } = await fetchJson(adminPath(blobId, databaseURL), { needAuth: true });
+      if (data && typeof data === 'object' && (data.records || data.settings || data.version)) {
+        return { data };
+      }
+    } catch (err) {
+      const msg = String(err.message || '');
+      if (msg.includes('Войдите') || msg.includes('Нет доступа')) {
+        // попробуем legacy с тем же токеном (если Rules ещё разрешают /focus)
+      } else if (!msg.includes('Чтение облака')) {
+        /* continue to legacy */
+      }
     }
-    if (res.status === 401 || res.status === 403) {
-      throw new Error('Облако закрыто. Откройте правила Firebase (read/write true).');
+
+    try {
+      // Legacy читаем с auth, если фотограф вошёл (новые Rules могут требовать auth)
+      const token = typeof FocusAuth !== 'undefined' ? await FocusAuth.getIdToken() : '';
+      const url = legacyPath(blobId, databaseURL);
+      const { data: legacy } = await fetchJson(url, { needAuth: Boolean(token) });
+      if (legacy && typeof legacy === 'object' && (legacy.records || legacy.settings)) {
+        return { data: legacy, fromLegacy: true };
+      }
+    } catch {
+      /* нет legacy */
     }
-    if (!res.ok) throw new Error(`Запись в облако: ${res.status}`);
-    return { data: body, etag: '' };
+    return { data: null };
+  }
+
+  async function apiPutAdmin(blobId, body, databaseURL) {
+    return fetchJson(adminPath(blobId, databaseURL), {
+      method: 'PUT',
+      body,
+      needAuth: true,
+    });
+  }
+
+  async function apiGetPublic(blobId, databaseURL) {
+    try {
+      const { data } = await fetchJson(publicPath(blobId, databaseURL), { needAuth: false });
+      if (data && typeof data === 'object') {
+        return {
+          data: {
+            ...emptyPublic(),
+            ...data,
+            settings: { ...(emptyPublic().settings), ...(data.settings || {}) },
+            blocks: Array.isArray(data.blocks) ? data.blocks : [],
+            mine: data.mine && typeof data.mine === 'object' ? data.mine : {},
+            inbox: data.inbox && typeof data.inbox === 'object' ? data.inbox : {},
+          },
+        };
+      }
+    } catch {
+      /* empty */
+    }
+    return { data: emptyPublic() };
+  }
+
+  async function apiPutPublic(blobId, body, databaseURL) {
+    return fetchJson(publicPath(blobId, databaseURL), {
+      method: 'PUT',
+      body,
+      needAuth: false,
+    });
+  }
+
+  async function publishPublic(blobId, adminData, databaseURL) {
+    const { data: prev } = await apiGetPublic(blobId, databaseURL);
+    const mirror = buildPublicMirror(adminData, prev);
+    await apiPutPublic(blobId, mirror, databaseURL);
+    return mirror;
   }
 
   async function withCloudLock(blobId, mutator, meta, maxTries = 5, databaseURL) {
     let lastError;
     for (let i = 0; i < maxTries; i += 1) {
-      const { data: raw } = await apiGet(blobId, databaseURL);
-      const current = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
+      const { data: raw, fromLegacy } = await apiGetAdmin(blobId, databaseURL);
+      let current = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
+
+      try {
+        const { data: pub } = await apiGetPublic(blobId, databaseURL);
+        if (mergeInboxIntoAdmin(current, pub)) {
+          current = FocusStorage.migrate(current);
+        }
+      } catch {
+        /* public optional */
+      }
+
       const next = await mutator(current);
-      if (!next) return current;
+      if (!next) {
+        if (fromLegacy && raw) {
+          await apiPutAdmin(blobId, payloadFrom(current, meta || { deviceId: 'device' }), databaseURL);
+          await publishPublic(blobId, current, databaseURL);
+        }
+        return current;
+      }
       const body = payloadFrom(next, meta || { deviceId: 'device' });
       try {
-        // Повторное чтение перед записью снижает риск затереть чужую запись
-        const { data: freshRaw } = await apiGet(blobId, databaseURL);
+        const { data: freshRaw } = await apiGetAdmin(blobId, databaseURL);
         const fresh = FocusStorage.migrate(freshRaw && typeof freshRaw === 'object' ? freshRaw : {});
         const merged = mergeData(body, fresh);
         const finalBody = payloadFrom(merged, meta || { deviceId: 'device' });
-        await apiPut(blobId, finalBody, '', databaseURL);
+        await apiPutAdmin(blobId, finalBody, databaseURL);
+        await publishPublic(blobId, finalBody, databaseURL);
         return FocusStorage.migrate(finalBody);
       } catch (err) {
         lastError = err;
@@ -274,6 +470,72 @@ const FocusSync = (() => {
       }
     }
     throw lastError || new Error('Не удалось сохранить');
+  }
+
+  /** Блокировка только public (для book.html) */
+  async function withPublicLock(blobId, mutator, maxTries = 5, databaseURL) {
+    let lastError;
+    for (let i = 0; i < maxTries; i += 1) {
+      const { data: current } = await apiGetPublic(blobId, databaseURL);
+      const next = await mutator({ ...emptyPublic(), ...current });
+      if (!next) return current;
+      try {
+        const { data: fresh } = await apiGetPublic(blobId, databaseURL);
+        // простое слияние inbox/mine/blocks по id
+        const merged = {
+          ...emptyPublic(),
+          ...fresh,
+          ...next,
+          settings: { ...(fresh.settings || {}), ...(next.settings || {}) },
+          blocks: mergeBlocks(fresh.blocks, next.blocks),
+          mine: { ...(fresh.mine || {}), ...(next.mine || {}) },
+          inbox: { ...(fresh.inbox || {}), ...(next.inbox || {}) },
+          publishedAt: new Date().toISOString(),
+        };
+        // удалить ключи mine явно помеченные null
+        Object.keys(merged.mine).forEach((k) => {
+          if (merged.mine[k] == null) delete merged.mine[k];
+        });
+        await apiPutPublic(blobId, merged, databaseURL);
+        return merged;
+      } catch (err) {
+        lastError = err;
+        if (i === maxTries - 1) throw err;
+      }
+    }
+    throw lastError || new Error('Не удалось сохранить запись');
+  }
+
+  function mergeBlocks(a = [], b = []) {
+    const map = new Map();
+    [...(a || []), ...(b || [])].forEach((bl) => {
+      if (!bl?.id) return;
+      map.set(bl.id, bl);
+    });
+    return [...map.values()].filter((bl) => bl.status !== 'cancelled');
+  }
+
+  /** Превращает public-зеркало в «records» для getFreeSlots / UI записи */
+  function recordsFromPublic(pub) {
+    const fromBlocks = (pub.blocks || []).map((bl) => ({
+      id: bl.id,
+      date: bl.date,
+      time: bl.time,
+      duration: Number(bl.duration) || 1,
+      status: bl.status || 'confirmed',
+      kind: 'client',
+      name: '',
+      phone: '',
+    }));
+    const fromInbox = Object.values(pub.inbox || {});
+    const fromMine = Object.values(pub.mine || {});
+    const map = new Map();
+    [...fromBlocks, ...fromInbox, ...fromMine].forEach((r) => {
+      if (!r?.id) return;
+      const prev = map.get(r.id);
+      if (!prev || (r.updatedAt || '') >= (prev.updatedAt || '')) map.set(r.id, r);
+    });
+    return [...map.values()];
   }
 
   function newSyncCode() {
@@ -287,13 +549,17 @@ const FocusSync = (() => {
       throw new Error('Сначала вставьте адрес Firebase в Настройках (блок «Облако»).');
     }
     if (!isOnline()) throw new Error('Нужен интернет, чтобы создать синхронизацию');
+    if (typeof FocusAuth !== 'undefined' && FocusAuth.requireAuth() && !FocusAuth.isLoggedIn()) {
+      throw new Error('Сначала войдите в кабинет (email и пароль).');
+    }
 
     syncing = true;
     notify(statusInfo());
     try {
       const blobId = newSyncCode();
       const body = payloadFrom(localData, meta);
-      await apiPut(blobId, body, '', meta.databaseURL);
+      await apiPutAdmin(blobId, body, meta.databaseURL);
+      await publishPublic(blobId, body, meta.databaseURL);
       meta = {
         ...meta,
         enabled: true,
@@ -323,6 +589,9 @@ const FocusSync = (() => {
       throw new Error('Сначала вставьте адрес Firebase в Настройках.');
     }
     if (!isOnline()) throw new Error('Нужен интернет, чтобы подключить синхронизацию');
+    if (typeof FocusAuth !== 'undefined' && FocusAuth.requireAuth() && !FocusAuth.isLoggedIn()) {
+      throw new Error('Сначала войдите в кабинет (email и пароль).');
+    }
 
     syncing = true;
     notify(statusInfo());
@@ -396,6 +665,9 @@ const FocusSync = (() => {
     const meta = loadMeta();
     if (!meta.enabled || !meta.blobId || !isOnline() || syncing) return null;
     if (!cloudReady()) return null;
+    if (typeof FocusAuth !== 'undefined' && FocusAuth.requireAuth() && !FocusAuth.isLoggedIn()) {
+      return null;
+    }
 
     syncing = true;
     notify(statusInfo());
@@ -432,23 +704,44 @@ const FocusSync = (() => {
     const meta = loadMeta();
     if (!meta.enabled || !meta.blobId || !isOnline() || syncing) return null;
     if (!cloudReady()) return null;
+    if (typeof FocusAuth !== 'undefined' && FocusAuth.requireAuth() && !FocusAuth.isLoggedIn()) {
+      return null;
+    }
 
     syncing = true;
     notify(statusInfo());
     try {
       const local = FocusStorage.load();
-      const { data: raw } = await apiGet(meta.blobId, meta.databaseURL);
-      const remote = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
+      const { data: raw } = await apiGetAdmin(meta.blobId, meta.databaseURL);
+      let remote = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
+      let inboxChanged = false;
+      try {
+        const { data: pub } = await apiGetPublic(meta.blobId, meta.databaseURL);
+        inboxChanged = mergeInboxIntoAdmin(remote, pub);
+        remote = FocusStorage.migrate(remote);
+      } catch {
+        /* ignore */
+      }
       let saved = mergeData(local, remote);
 
-      if (meta.dirty) {
+      if (meta.dirty || inboxChanged) {
         saved = await withCloudLock(
           meta.blobId,
-          (fresh) => mergeData(saved, fresh),
+          (fresh) => {
+            const merged = mergeData(saved, fresh);
+            return merged;
+          },
           meta,
           5,
           meta.databaseURL
         );
+      } else {
+        // Обновить public-зеркало (настройки/блоки), не трогая admin без нужды
+        try {
+          await publishPublic(meta.blobId, saved, meta.databaseURL);
+        } catch {
+          /* ignore */
+        }
       }
 
       FocusStorage.save(saved);
@@ -482,6 +775,9 @@ const FocusSync = (() => {
     ensureDeviceId(loadMeta());
 
     const run = async () => {
+      if (typeof FocusAuth !== 'undefined' && FocusAuth.requireAuth() && !FocusAuth.isLoggedIn()) {
+        return;
+      }
       const data = await syncNow();
       if (data) setData(data);
     };
@@ -522,8 +818,15 @@ const FocusSync = (() => {
     startAutoSync,
     mergeData,
     withCloudLock,
-    cloudGet: apiGet,
-    cloudPut: apiPut,
+    withPublicLock,
+    cloudGet: apiGetAdmin,
+    cloudPut: apiPutAdmin,
+    cloudGetPublic: apiGetPublic,
+    cloudPutPublic: apiPutPublic,
+    publishPublic,
+    buildPublicMirror,
+    recordsFromPublic,
+    emptyPublic,
     payloadFrom,
     getDatabaseURL,
     cloudReady,

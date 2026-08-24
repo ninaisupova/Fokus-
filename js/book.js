@@ -8,6 +8,7 @@
 
   const state = {
     data: null,
+    public: null,
     cursor: new Date(),
     selectedDate: null,
     selectedTime: null,
@@ -15,6 +16,16 @@
     myRecord: null,
     databaseURL: dbFromLink || FocusSync.getDatabaseURL(),
   };
+
+  function applyPublic(pub) {
+    const p = pub && typeof pub === 'object' ? pub : FocusSync.emptyPublic();
+    state.public = p;
+    state.data = {
+      settings: { ...FocusStorage.defaultSettings(), ...(p.settings || {}) },
+      records: FocusSync.recordsFromPublic(p),
+    };
+    state.myRecord = findMyRecord();
+  }
 
   const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -315,23 +326,19 @@
   }
 
   async function refreshCloud() {
-    const { data: raw } = await FocusSync.cloudGet(cloudCode, state.databaseURL);
-    state.data = FocusStorage.migrate(raw && typeof raw === 'object' ? raw : {});
-    state.myRecord = findMyRecord();
+    const { data: pub } = await FocusSync.cloudGetPublic(cloudCode, state.databaseURL);
+    applyPublic(pub);
   }
 
-  async function commitCloud(mutator) {
-    const meta = { deviceId: `client_${FocusStorage.uid().slice(0, 8)}` };
-    const saved = await FocusSync.withCloudLock(
+  async function commitPublic(mutator) {
+    const saved = await FocusSync.withPublicLock(
       cloudCode,
       mutator,
-      meta,
       5,
       state.databaseURL
     );
-    state.data = saved;
-    state.myRecord = findMyRecord();
-    return state.data;
+    applyPublic(saved);
+    return saved;
   }
 
   async function submitBooking(e) {
@@ -362,13 +369,14 @@
 
     try {
       let created = null;
-      await commitCloud((data) => {
+      await commitPublic((pub) => {
         if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
           throw new Error('Нельзя записаться на прошедшую дату или время');
         }
-        const { workStart, workEnd } = data.settings;
+        const records = FocusSync.recordsFromPublic(pub);
+        const { workStart, workEnd } = pub.settings || {};
         const free = FocusStorage.getFreeSlots(
-          data.records,
+          records,
           state.selectedDate,
           workStart,
           workEnd,
@@ -381,7 +389,7 @@
 
         const id = FocusStorage.uid();
         const publicToken = FocusStorage.uid().replace(/-/g, '').slice(0, 16);
-        const client = FocusStorage.findOrCreateClient(data, { name, phone, vk });
+        const now = new Date().toISOString();
         created = {
           id,
           kind: 'client',
@@ -397,15 +405,42 @@
           price: 0,
           prepaid: 0,
           comment,
-          clientId: client.id,
           clientRescheduleCount: 0,
           publicToken,
           source: 'public',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: now,
+          updatedAt: now,
         };
-        data.records.push(created);
-        return data;
+        pub.inbox = { ...(pub.inbox || {}), [id]: created };
+        pub.mine = {
+          ...(pub.mine || {}),
+          [publicToken]: {
+            id,
+            publicToken,
+            date: created.date,
+            time: created.time,
+            duration: created.duration,
+            type: created.type,
+            status: created.status,
+            name,
+            phone,
+            vk,
+            comment,
+            clientRescheduleCount: 0,
+            updatedAt: now,
+          },
+        };
+        pub.blocks = [
+          ...(pub.blocks || []).filter((b) => b.id !== id),
+          {
+            id,
+            date: created.date,
+            time: created.time,
+            duration: created.duration,
+            status: created.status,
+          },
+        ];
+        return pub;
       });
 
       saveMyBooking({ code: cloudCode, id: created.id, token: created.publicToken });
@@ -443,18 +478,23 @@
 
     showAlert('');
     try {
-      await commitCloud((data) => {
-        const record = data.records.find((r) => r.id === state.myRecord.id);
-        if (!record || record.publicToken !== state.myRecord.publicToken) {
+      await commitPublic((pub) => {
+        const token = state.myRecord.publicToken;
+        const record =
+          (pub.mine && pub.mine[token]) ||
+          (pub.inbox && pub.inbox[state.myRecord.id]) ||
+          null;
+        if (!record || record.id !== state.myRecord.id) {
           throw new Error('Запись не найдена');
         }
         if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
           throw new Error('Нельзя перенести на прошедшую дату или время');
         }
         const excludeId = record.id;
-        const { workStart, workEnd } = data.settings;
+        const records = FocusSync.recordsFromPublic(pub).filter((r) => r.id !== excludeId);
+        const { workStart, workEnd } = pub.settings || {};
         const free = FocusStorage.getFreeSlots(
-          data.records.filter((r) => r.id !== excludeId),
+          records,
           state.selectedDate,
           workStart,
           workEnd,
@@ -464,25 +504,30 @@
         if (!free.includes(state.selectedTime)) {
           throw new Error('Это время уже занято или недоступно');
         }
-        if (
-          FocusStorage.hasConflict(data.records, {
-            date: state.selectedDate,
-            time: state.selectedTime,
-            duration: record.duration || duration(),
-            excludeId,
-          })
-        ) {
-          throw new Error('Это время уже занято');
-        }
-        record.date = state.selectedDate;
-        record.time = state.selectedTime;
-        record.clientRescheduleCount = Number(record.clientRescheduleCount || 0) + 1;
-        record.updatedAt = new Date().toISOString();
-        record.status = record.status === 'cancelled' ? 'pending' : record.status;
-        delete record.proposedDate;
-        delete record.proposedTime;
-        if (record.status === 'reschedule_requested') record.status = 'pending';
-        return data;
+        const now = new Date().toISOString();
+        const next = {
+          ...record,
+          date: state.selectedDate,
+          time: state.selectedTime,
+          clientRescheduleCount: Number(record.clientRescheduleCount || 0) + 1,
+          updatedAt: now,
+          status: record.status === 'reschedule_requested' ? 'pending' : record.status || 'pending',
+        };
+        delete next.proposedDate;
+        delete next.proposedTime;
+        pub.mine = { ...(pub.mine || {}), [token]: next };
+        pub.inbox = { ...(pub.inbox || {}), [next.id]: { ...next, kind: 'client', source: 'public' } };
+        pub.blocks = [
+          ...(pub.blocks || []).filter((b) => b.id !== next.id),
+          {
+            id: next.id,
+            date: next.date,
+            time: next.time,
+            duration: next.duration || duration(),
+            status: next.status,
+          },
+        ];
+        return pub;
       });
       state.mode = 'book';
       renderMyBooking();
@@ -502,16 +547,21 @@
       return;
     }
     try {
-      await commitCloud((data) => {
-        const record = data.records.find((r) => r.id === state.myRecord.id);
-        if (!record || record.publicToken !== state.myRecord.publicToken) {
+      await commitPublic((pub) => {
+        const token = state.myRecord.publicToken;
+        const record =
+          (pub.mine && pub.mine[token]) ||
+          (pub.inbox && pub.inbox[state.myRecord.id]) ||
+          null;
+        if (!record || record.id !== state.myRecord.id) {
           throw new Error('Запись не найдена');
         }
         if (FocusStorage.isSlotInPast(state.selectedDate, state.selectedTime)) {
           throw new Error('Нельзя перенести на прошедшую дату или время');
         }
+        const records = FocusSync.recordsFromPublic(pub);
         if (
-          FocusStorage.hasConflict(data.records, {
+          FocusStorage.hasConflict(records, {
             date: state.selectedDate,
             time: state.selectedTime,
             duration: record.duration || duration(),
@@ -520,11 +570,17 @@
         ) {
           throw new Error('Это время уже занято');
         }
-        record.status = 'reschedule_requested';
-        record.proposedDate = state.selectedDate;
-        record.proposedTime = state.selectedTime;
-        record.updatedAt = new Date().toISOString();
-        return data;
+        const now = new Date().toISOString();
+        const next = {
+          ...record,
+          status: 'reschedule_requested',
+          proposedDate: state.selectedDate,
+          proposedTime: state.selectedTime,
+          updatedAt: now,
+        };
+        pub.mine = { ...(pub.mine || {}), [token]: next };
+        pub.inbox = { ...(pub.inbox || {}), [next.id]: { ...next, kind: 'client', source: 'public' } };
+        return pub;
       });
       state.mode = 'book';
       renderMyBooking();
@@ -626,8 +682,15 @@
     try {
       showAlert('Загружаем свободные слоты…', true);
       await refreshCloud();
-      if (!state.data) state.data = FocusStorage.migrate({});
-      showAlert('');
+      if (!state.data) applyPublic(FocusSync.emptyPublic());
+      if (!state.public?.publishedAt && !(state.public?.blocks || []).length) {
+        showAlert(
+          'Календарь ещё не опубликован. Фотографу нужно войти в кабинет и нажать «Синхронизировать сейчас».',
+          false
+        );
+      } else {
+        showAlert('');
+      }
       renderMyBooking();
       renderCalendar();
       if (state.myRecord && manageToken) {

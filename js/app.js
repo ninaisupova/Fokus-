@@ -821,6 +821,7 @@
       fillWorkHourSelects();
       fillBookingSettings();
       updateNotifyStatus();
+      updateAuthUserUI();
     }
     updateSyncStatusUI();
   }
@@ -1346,6 +1347,87 @@
     });
   }
 
+  function updateAuthUserUI() {
+    const label = $('#authUserLabel');
+    const user = typeof FocusAuth !== 'undefined' ? FocusAuth.currentUser() : null;
+    if (label) {
+      label.textContent = user?.email
+        ? `Вы вошли как ${user.email}`
+        : 'Не выполнен вход';
+    }
+  }
+
+  function showAuthGate(show) {
+    const gate = $('#authGate');
+    document.body.classList.toggle('auth-locked', !!show);
+    gate?.classList.toggle('hidden', !show);
+    if (show) {
+      const hint = $('#authHint');
+      if (hint) {
+        if (typeof FocusAuth !== 'undefined' && !FocusAuth.authConfigured()) {
+          hint.textContent =
+            'Сначала вставьте Web API Key в js/cloud-config.js и создайте пользователя в Firebase Authentication (см. FIREBASE_RULES.md).';
+          hint.classList.remove('hidden');
+        } else {
+          hint.classList.add('hidden');
+        }
+      }
+      updateAuthUserUI();
+    }
+  }
+
+  function needsAuthGate() {
+    return (
+      typeof FocusAuth !== 'undefined' &&
+      FocusAuth.requireAuth() &&
+      !FocusAuth.isLoggedIn()
+    );
+  }
+
+  function startAppRuntime() {
+    try {
+      applyTheme();
+      updateSyncStatusUI();
+      updateNotifyStatus();
+      updateAuthUserUI();
+    } catch (err) {
+      console.error(err);
+    }
+
+    try {
+      if (typeof FocusSync !== 'undefined') {
+        FocusSync.setHandler(() => {
+          updateSyncStatusUI();
+        });
+
+        if (FocusSync.getDatabaseURL() && !FocusSync.loadMeta().databaseURL) {
+          FocusSync.setDatabaseURL(FocusSync.getDatabaseURL());
+        }
+
+        FocusSync.startAutoSync(
+          () => state.data,
+          (data) => {
+            applyCloudData(data, { announce: true });
+          }
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    try {
+      render();
+    } catch (err) {
+      console.error(err);
+    }
+
+    try {
+      $('#bookingToast')?.classList.add('hidden');
+      $('#sheetOverlay')?.classList.add('hidden');
+      $$('.bottom-sheet').forEach((el) => el.classList.remove('open'));
+    } catch (err) {}
+  }
+
   seedSeenPublicIds();
 
   // Сначала кнопки — даже если синхронизация упадёт
@@ -1356,45 +1438,47 @@
     alert('Ошибка интерфейса. Обновите страницу или очистите кэш браузера.');
   }
 
-  try {
-    applyTheme();
-    updateSyncStatusUI();
-    updateNotifyStatus();
-  } catch (err) {
-    console.error(err);
-  }
-
-  try {
-    if (typeof FocusSync !== 'undefined') {
-      FocusSync.setHandler(() => {
-        updateSyncStatusUI();
-      });
-
-      if (FocusSync.getDatabaseURL() && !FocusSync.loadMeta().databaseURL) {
-        FocusSync.setDatabaseURL(FocusSync.getDatabaseURL());
+  $('#authForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = $('#authError');
+    const btn = $('#authSubmit');
+    errEl?.classList.add('hidden');
+    if (typeof FocusAuth === 'undefined') return;
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Входим…';
       }
-
-      FocusSync.startAutoSync(
-        () => state.data,
-        (data) => {
-          applyCloudData(data, { announce: true });
-        }
-      );
+      await FocusAuth.signIn($('#authEmail')?.value, $('#authPassword')?.value);
+      showAuthGate(false);
+      startAppRuntime();
+      FocusSync.syncNow?.().then((data) => {
+        if (data) applyCloudData(data, { announce: true });
+      });
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Не удалось войти';
+        errEl.classList.remove('hidden');
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Войти';
+      }
     }
-  } catch (err) {
-    console.error(err);
-  }
+  });
 
-  try {
-    render();
-  } catch (err) {
-    console.error(err);
-  }
+  $('#logoutBtn')?.addEventListener('click', async () => {
+    if (!confirm('Выйти из кабинета на этом устройстве?')) return;
+    await FocusAuth.signOut();
+    updateAuthUserUI();
+    showAuthGate(true);
+  });
 
-  // Сброс залипших оверлеев
-  try {
-    $('#bookingToast')?.classList.add('hidden');
-    $('#sheetOverlay')?.classList.add('hidden');
-    $$('.bottom-sheet').forEach((el) => el.classList.remove('open'));
-  } catch (err) {}
+  if (needsAuthGate()) {
+    showAuthGate(true);
+  } else {
+    showAuthGate(false);
+    startAppRuntime();
+  }
 })();
