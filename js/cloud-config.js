@@ -5,6 +5,6 @@
  */
 window.FOCUS_CLOUD = {
   databaseURL: 'https://fokus-plus-default-rtdb.firebaseio.com',
-  apiKey: '', // ← вставьте Web API Key из Firebase Console
+  apiKey: 'AIzaSyAAYSW3H80-nzIGmzVPdV-1cr-q6yCKzyI',
   requireAuth: true,
 };
