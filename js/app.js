@@ -781,7 +781,10 @@
                     <h3>${escapeHtml(c.name)}</h3>
                     <p class="muted">${escapeHtml(c.phone || 'без телефона')}${c.vk ? ` · ${escapeHtml(c.vk)}` : ''}</p>
                   </div>
-                  <span class="badge">${count} съёмки</span>
+                  <div class="client-card-aside">
+                    <span class="badge">${count} съёмки</span>
+                    <button type="button" class="client-delete-btn" data-delete-client="${c.id}" aria-label="Удалить клиента">Удалить</button>
+                  </div>
                 </div>
                 ${c.comment ? `<p class="record-comment">${escapeHtml(c.comment)}</p>` : ''}
                 <div class="client-history">
@@ -800,6 +803,20 @@
           })
           .join('')
       : '<div class="empty">Клиентов пока нет</div>';
+
+    box.querySelectorAll('[data-delete-client]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-delete-client');
+        const client = state.data.clients.find((x) => x.id === id);
+        if (!client) return;
+        if (!confirm(`Удалить клиента «${client.name}»? Записи в календаре останутся.`)) return;
+        FocusStorage.touchTrash(state.data, 'clients', id);
+        state.data.clients = state.data.clients.filter((x) => x.id !== id);
+        persist();
+        renderClients();
+      });
+    });
 
     box.querySelectorAll('.client-card').forEach((card) => {
       card.addEventListener('click', () => {

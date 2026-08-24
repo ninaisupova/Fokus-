@@ -406,6 +406,29 @@ button {
   align-items: flex-start;
 }
 
+.client-card-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.client-delete-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--danger);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.client-delete-btn:active {
+  opacity: 0.75;
+}
+
 .record-card h3,
 .client-card h3 {
   margin: 0 0 4px;
