@@ -318,7 +318,7 @@
   function openForm() {
     syncDurationSelect();
     $('#formTitle').textContent = 'Ваши данные';
-    $('#formSummary').textContent = `${formatDate(state.selectedDate)} · ${state.selectedTime} · ${formatDuration(duration())}`;
+    $('#formSummary').textContent = `${formatDate(state.selectedDate)} · ${state.selectedTime}`;
     const phone = $('#bPhone');
     if (phone && !phone.value.trim()) phone.value = '+7 ';
     $('#bookSubmitBtn').textContent = 'Записаться';
