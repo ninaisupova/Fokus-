@@ -131,19 +131,25 @@
   background: transparent;
 }
 
-.day-cell.is-past:not(.is-busy) {
+.day-cell.is-past:not(.is-busy):not(.is-partial) {
   background: transparent;
-  opacity: 0.85;
+  opacity: 0.75;
 }
 
 .day-cell.is-past.is-busy,
 .day-cell.is-past.is-partial {
-  opacity: 0.95;
+  opacity: 1;
 }
 
-.day-cell.is-past.is-partial .day-dot,
-.day-cell.is-past.is-busy .day-cross {
+.day-cell.is-past.is-partial .day-dot {
   opacity: 1;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+}
+
+.day-cell.is-past.is-busy .day-cross {
+  opacity: 0.9;
 }
 
 .records-hint {

@@ -101,11 +101,14 @@ const FocusCalendar = (() => {
       const outOfRange =
         (min && cell.date < min) || (max && cell.date > max);
 
-      // Крест — только если день заполнен целиком (нет свободных часов для клиентов)
-      if (fullyBusy) btn.classList.add('is-busy');
-      else if (cell.inMonth && !isPast && !outOfRange) {
+      // Крест / точка — и на прошлых днях (история съёмок)
+      if (fullyBusy) {
+        btn.classList.add('is-busy');
+      } else if (partlyBusy) {
+        btn.classList.add('is-partial');
+        if (cell.inMonth && !isPast && !outOfRange) btn.classList.add('is-free');
+      } else if (cell.inMonth && !isPast && !outOfRange) {
         btn.classList.add('is-free');
-        if (partlyBusy) btn.classList.add('is-partial');
       }
 
       if (isToday) btn.classList.add('is-today');

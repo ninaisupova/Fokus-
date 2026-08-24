@@ -507,12 +507,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=208"></script>
-  <script src="js/cloud-config.js?v=208"></script>
-  <script src="js/auth.js?v=208"></script>
-  <script src="js/sync.js?v=208"></script>
-  <script src="js/calendar.js?v=208"></script>
-  <script src="js/app.js?v=208"></script>
+  <script src="js/storage.js?v=209"></script>
+  <script src="js/cloud-config.js?v=209"></script>
+  <script src="js/auth.js?v=209"></script>
+  <script src="js/sync.js?v=209"></script>
+  <script src="js/calendar.js?v=209"></script>
+  <script src="js/app.js?v=209"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -522,7 +522,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=208');
+          await navigator.serviceWorker.register('service-worker.js?v=209');
         } catch (e) {}
       });
     }

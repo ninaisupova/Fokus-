@@ -1,4 +1,4 @@
-const CACHE = 'focusplus-v20-8';
+const CACHE = 'focusplus-v20-9';
 const ASSETS = [
   './',
   './index.html',
