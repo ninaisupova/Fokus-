@@ -12,6 +12,7 @@
     cursor: new Date(),
     selectedDate: null,
     selectedTime: null,
+    selectedDuration: 1,
     mode: 'book',
     myRecord: null,
     databaseURL: dbFromLink || FocusSync.getDatabaseURL(),
@@ -38,7 +39,19 @@
   }
 
   function duration() {
-    return Number(settings().bookingDuration) || 1;
+    const fromUi = Number($('#bDuration')?.value);
+    if (fromUi > 0) {
+      state.selectedDuration = fromUi;
+      return fromUi;
+    }
+    return Number(state.selectedDuration) || Number(settings().bookingDuration) || 1;
+  }
+
+  function syncDurationSelect() {
+    const el = $('#bDuration');
+    if (!el) return;
+    const val = String(state.selectedDuration || settings().bookingDuration || 1);
+    if ([...el.options].some((o) => o.value === val)) el.value = val;
   }
 
   function slotStep() {
@@ -206,11 +219,15 @@
   function renderSlots() {
     const list = $('#slotsList');
     const label = $('#slotsDayLabel');
+    const durHint = $('#slotsDurationHint');
     if (!list || !state.selectedDate) return;
 
     const d = FocusCalendar.parseISODate(state.selectedDate);
     if (label) {
       label.textContent = `· ${d.getDate()} ${FocusCalendar.MONTHS[d.getMonth()].toLowerCase()}`;
+    }
+    if (durHint) {
+      durHint.textContent = `Длительность: ${formatDuration(duration())}. Слоты подобраны под это время.`;
     }
 
     const { workStart, workEnd } = settings();
@@ -263,7 +280,7 @@
 
   function openForm() {
     $('#formTitle').textContent = 'Ваши данные';
-    $('#formSummary').textContent = `${formatDate(state.selectedDate)} · ${state.selectedTime}`;
+    $('#formSummary').textContent = `${formatDate(state.selectedDate)} · ${state.selectedTime} · ${formatDuration(duration())}`;
     $('#bookSubmitBtn').textContent = 'Записаться';
     showPanel('form');
   }
@@ -273,9 +290,12 @@
   }
 
   function formatDuration(h) {
-    if (Number(h) === 0.5) return '30 мин';
-    if (Number(h) === 1) return '1 ч';
-    return `${h} ч`;
+    const n = Number(h);
+    if (n === 0.5) return '30 мин';
+    if (n === 1) return '1 ч';
+    if (n === 1.5) return '1,5 ч';
+    if (n === 10) return '10 ч (весь день)';
+    return `${n} ч`;
   }
 
   function renderMyBooking() {
@@ -357,8 +377,19 @@
     const vk = $('#bVk').value.trim();
     const type = $('#bType').value;
     const comment = $('#bComment').value.trim();
-    if (!name || !phone) {
-      showAlert('Укажите имя и телефон');
+    const consent = $('#bConsent')?.checked;
+    const dur = duration();
+
+    if (!name) {
+      showAlert('Укажите имя');
+      return;
+    }
+    if (!phone && !vk) {
+      showAlert('Укажите телефон или ссылку на VK');
+      return;
+    }
+    if (!consent) {
+      showAlert('Нужно согласие на обработку персональных данных');
       return;
     }
 
@@ -380,7 +411,7 @@
           state.selectedDate,
           workStart,
           workEnd,
-          duration(),
+          dur,
           slotStep()
         );
         if (!free.includes(state.selectedTime)) {
@@ -400,7 +431,7 @@
           status: 'pending',
           date: state.selectedDate,
           time: state.selectedTime,
-          duration: duration(),
+          duration: dur,
           location: '',
           price: 0,
           prepaid: 0,
@@ -408,6 +439,7 @@
           clientRescheduleCount: 0,
           publicToken,
           source: 'public',
+          consentAt: now,
           createdAt: now,
           updatedAt: now,
         };
@@ -601,6 +633,16 @@
       renderCalendar();
     });
 
+    $('#bDuration')?.addEventListener('change', () => {
+      state.selectedDuration = Number($('#bDuration').value) || 1;
+      state.selectedTime = null;
+      renderCalendar();
+      if (state.selectedDate) {
+        renderSlots();
+        showPanel('slots');
+      }
+    });
+
     $('#bookForm')?.addEventListener('submit', submitBooking);
     $('#backToSlotsBtn')?.addEventListener('click', () => {
       showPanel('slots');
@@ -694,6 +736,8 @@
       } else {
         showAlert('');
       }
+      state.selectedDuration = Number(settings().bookingDuration) || 1;
+      syncDurationSelect();
       renderMyBooking();
       renderCalendar();
       if (state.myRecord && manageToken) {

@@ -52,6 +52,22 @@
 
     <!-- Выбор даты -->
     <section id="datePanel" class="book-panel hidden">
+      <label class="book-duration-label">Сколько времени нужно
+        <select id="bDuration">
+          <option value="0.5">30 минут</option>
+          <option value="1" selected>1 час</option>
+          <option value="1.5">1,5 часа</option>
+          <option value="2">2 часа</option>
+          <option value="3">3 часа</option>
+          <option value="4">4 часа</option>
+          <option value="5">5 часов</option>
+          <option value="6">6 часов</option>
+          <option value="7">7 часов</option>
+          <option value="8">8 часов</option>
+          <option value="9">9 часов</option>
+          <option value="10">10 часов (весь день)</option>
+        </select>
+      </label>
       <div class="calendar-top">
         <button id="bookPrevMonth" class="icon-btn" type="button" aria-label="Предыдущий месяц">‹</button>
         <h2 id="bookMonthTitle"></h2>
@@ -61,12 +77,13 @@
         <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
       </div>
       <div id="bookCalendarGrid" class="calendar-grid"></div>
-      <p class="muted book-hint">Оливковый день — есть свободное время. Крест — день занят.</p>
+      <p class="muted book-hint">Сначала выберите длительность — от неё зависят свободные дни и слоты.</p>
     </section>
 
     <!-- Выбор времени -->
     <section id="slotsPanel" class="book-panel hidden">
       <h2>Свободное время <span id="slotsDayLabel" class="muted"></span></h2>
+      <p id="slotsDurationHint" class="muted book-hint"></p>
       <div id="slotsList" class="slots-list"></div>
     </section>
 
@@ -76,10 +93,13 @@
       <p id="formSummary" class="form-summary"></p>
       <form id="bookForm" class="book-form">
         <label>Имя<input id="bName" type="text" required placeholder="Анна" autocomplete="name"></label>
-        <label>Телефон<input id="bPhone" type="tel" required placeholder="+7 ..." autocomplete="tel"></label>
-        <label>VK <span class="muted">(необязательно)</span>
+        <label>Телефон <span class="muted">(или VK)</span>
+          <input id="bPhone" type="tel" placeholder="+7 ..." autocomplete="tel">
+        </label>
+        <label>VK <span class="muted">(или телефон)</span>
           <input id="bVk" type="text" placeholder="vk.com/..." autocomplete="username">
         </label>
+        <p class="muted book-hint">Укажите телефон или ссылку на VK — достаточно одного контакта.</p>
         <label>Вид съёмки
           <select id="bType">
             <option>Индивидуальная</option>
@@ -90,6 +110,10 @@
         </label>
         <label>Комментарий
           <textarea id="bComment" rows="3" placeholder="Пожелания к съёмке"></textarea>
+        </label>
+        <label class="consent-label">
+          <input id="bConsent" type="checkbox" required>
+          <span>Согласен(на) на обработку персональных данных для записи на съёмку</span>
         </label>
         <button class="save-button" type="submit" id="bookSubmitBtn">Записаться</button>
         <button class="chip-btn" type="button" id="backToSlotsBtn">Назад к времени</button>
@@ -113,10 +137,10 @@
     </footer>
   </div>
 
-  <script src="js/storage.js?v=211"></script>
-  <script src="js/cloud-config.js?v=211"></script>
-  <script src="js/sync.js?v=211"></script>
-  <script src="js/calendar.js?v=211"></script>
-  <script src="js/book.js?v=211"></script>
+  <script src="js/storage.js?v=212"></script>
+  <script src="js/cloud-config.js?v=212"></script>
+  <script src="js/sync.js?v=212"></script>
+  <script src="js/calendar.js?v=212"></script>
+  <script src="js/book.js?v=212"></script>
 </body>
 </html>
