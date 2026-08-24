@@ -39,19 +39,56 @@
   }
 
   function duration() {
-    const fromUi = Number($('#bDuration')?.value);
-    if (fromUi > 0) {
-      state.selectedDuration = fromUi;
-      return fromUi;
-    }
-    return Number(state.selectedDuration) || Number(settings().bookingDuration) || 1;
+    const fromForm = Number($('#bDurationForm')?.value);
+    const fromSlots = Number($('#bDuration')?.value);
+    const val = fromForm > 0 ? fromForm : fromSlots > 0 ? fromSlots : state.selectedDuration;
+    state.selectedDuration = Number(val) || 1;
+    return state.selectedDuration;
   }
 
   function syncDurationSelect() {
-    const el = $('#bDuration');
-    if (!el) return;
     const val = String(state.selectedDuration || settings().bookingDuration || 1);
-    if ([...el.options].some((o) => o.value === val)) el.value = val;
+    ['#bDuration', '#bDurationForm'].forEach((sel) => {
+      const el = $(sel);
+      if (!el) return;
+      if ([...el.options].some((o) => o.value === val)) el.value = val;
+    });
+  }
+
+  function applyDurationChange(sourceEl) {
+    state.selectedDuration = Number(sourceEl?.value) || 1;
+    syncDurationSelect();
+    state.selectedTime = null;
+    renderCalendar();
+    if (state.selectedDate) {
+      renderSlots();
+      showPanel('slots');
+      showAlert('Длительность изменена — выберите время заново');
+    }
+  }
+
+  /** Маска: +7 XXX XXX XX XX */
+  function formatRuPhone(value) {
+    let digits = String(value || '').replace(/\D/g, '');
+    if (digits.startsWith('8')) digits = `7${digits.slice(1)}`;
+    if (!digits.startsWith('7')) digits = `7${digits}`;
+    digits = digits.slice(0, 11);
+    const rest = digits.slice(1);
+    let out = '+7';
+    if (rest.length > 0) out += ` ${rest.slice(0, 3)}`;
+    if (rest.length > 3) out += ` ${rest.slice(3, 6)}`;
+    if (rest.length > 6) out += ` ${rest.slice(6, 8)}`;
+    if (rest.length > 8) out += ` ${rest.slice(8, 10)}`;
+    return out;
+  }
+
+  function phoneDigits(value) {
+    return String(value || '').replace(/\D/g, '');
+  }
+
+  function isPhoneComplete(value) {
+    const d = phoneDigits(value);
+    return d.length === 11 && d.startsWith('7');
   }
 
   function slotStep() {
@@ -279,8 +316,11 @@
   }
 
   function openForm() {
+    syncDurationSelect();
     $('#formTitle').textContent = 'Ваши данные';
     $('#formSummary').textContent = `${formatDate(state.selectedDate)} · ${state.selectedTime} · ${formatDuration(duration())}`;
+    const phone = $('#bPhone');
+    if (phone && !phone.value.trim()) phone.value = '+7 ';
     $('#bookSubmitBtn').textContent = 'Записаться';
     showPanel('form');
   }
@@ -373,7 +413,10 @@
     }
 
     const name = $('#bName').value.trim();
-    const phone = $('#bPhone').value.trim();
+    const phoneRaw = $('#bPhone').value.trim();
+    const phoneDigitCount = phoneDigits(phoneRaw).length;
+    const hasPhone = isPhoneComplete(phoneRaw);
+    const phone = hasPhone ? formatRuPhone(phoneRaw) : '';
     const vk = $('#bVk').value.trim();
     const type = $('#bType').value;
     const comment = $('#bComment').value.trim();
@@ -384,8 +427,12 @@
       showAlert('Укажите имя');
       return;
     }
-    if (!phone && !vk) {
+    if (!hasPhone && !vk) {
       showAlert('Укажите телефон или ссылку на VK');
+      return;
+    }
+    if (phoneDigitCount > 1 && !hasPhone) {
+      showAlert('Телефон в формате +7 999 123 45 67');
       return;
     }
     if (!consent) {
@@ -633,15 +680,29 @@
       renderCalendar();
     });
 
-    $('#bDuration')?.addEventListener('change', () => {
-      state.selectedDuration = Number($('#bDuration').value) || 1;
-      state.selectedTime = null;
-      renderCalendar();
-      if (state.selectedDate) {
-        renderSlots();
-        showPanel('slots');
-      }
-    });
+    $('#bDuration')?.addEventListener('change', (e) => applyDurationChange(e.target));
+    $('#bDurationForm')?.addEventListener('change', (e) => applyDurationChange(e.target));
+
+    const phoneEl = $('#bPhone');
+    if (phoneEl) {
+      phoneEl.addEventListener('focus', () => {
+        if (!phoneEl.value.trim()) phoneEl.value = '+7 ';
+      });
+      phoneEl.addEventListener('input', () => {
+        const formatted = formatRuPhone(phoneEl.value);
+        phoneEl.value = formatted;
+      });
+      phoneEl.addEventListener('keydown', (e) => {
+        // Не даём стереть префикс +7
+        if (
+          (e.key === 'Backspace' || e.key === 'Delete') &&
+          phoneEl.selectionStart <= 3 &&
+          phoneEl.selectionEnd <= 3
+        ) {
+          e.preventDefault();
+        }
+      });
+    }
 
     $('#bookForm')?.addEventListener('submit', submitBooking);
     $('#backToSlotsBtn')?.addEventListener('click', () => {

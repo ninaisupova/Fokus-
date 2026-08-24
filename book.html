@@ -25,9 +25,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/calendar.css">
-  <link rel="stylesheet" href="css/book.css">
+  <link rel="stylesheet" href="css/style.css?v=215">
+  <link rel="stylesheet" href="css/calendar.css?v=215">
+  <link rel="stylesheet" href="css/book.css?v=215">
 </head>
 <body class="book-page">
   <div class="book-app">
@@ -52,7 +52,22 @@
 
     <!-- Выбор даты -->
     <section id="datePanel" class="book-panel hidden">
-      <label class="book-duration-label">Сколько времени нужно
+      <div class="calendar-top">
+        <button id="bookPrevMonth" class="icon-btn" type="button" aria-label="Предыдущий месяц">‹</button>
+        <h2 id="bookMonthTitle"></h2>
+        <button id="bookNextMonth" class="icon-btn" type="button" aria-label="Следующий месяц">›</button>
+      </div>
+      <div class="weekdays">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+      </div>
+      <div id="bookCalendarGrid" class="calendar-grid"></div>
+      <p class="muted book-hint">Оливковый день — есть свободное время. Крест — день занят. Длительность выберете в форме записи.</p>
+    </section>
+
+    <!-- Выбор времени -->
+    <section id="slotsPanel" class="book-panel hidden">
+      <h2>Свободное время <span id="slotsDayLabel" class="muted"></span></h2>
+      <label class="book-duration-label">Длительность съёмки
         <select id="bDuration">
           <option value="0.5">30 минут</option>
           <option value="1" selected>1 час</option>
@@ -68,21 +83,6 @@
           <option value="10">10 часов (весь день)</option>
         </select>
       </label>
-      <div class="calendar-top">
-        <button id="bookPrevMonth" class="icon-btn" type="button" aria-label="Предыдущий месяц">‹</button>
-        <h2 id="bookMonthTitle"></h2>
-        <button id="bookNextMonth" class="icon-btn" type="button" aria-label="Следующий месяц">›</button>
-      </div>
-      <div class="weekdays">
-        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
-      </div>
-      <div id="bookCalendarGrid" class="calendar-grid"></div>
-      <p class="muted book-hint">Сначала выберите длительность — от неё зависят свободные дни и слоты.</p>
-    </section>
-
-    <!-- Выбор времени -->
-    <section id="slotsPanel" class="book-panel hidden">
-      <h2>Свободное время <span id="slotsDayLabel" class="muted"></span></h2>
       <p id="slotsDurationHint" class="muted book-hint"></p>
       <div id="slotsList" class="slots-list"></div>
     </section>
@@ -92,9 +92,25 @@
       <h2 id="formTitle">Ваши данные</h2>
       <p id="formSummary" class="form-summary"></p>
       <form id="bookForm" class="book-form">
+        <label>Длительность съёмки
+          <select id="bDurationForm">
+            <option value="0.5">30 минут</option>
+            <option value="1" selected>1 час</option>
+            <option value="1.5">1,5 часа</option>
+            <option value="2">2 часа</option>
+            <option value="3">3 часа</option>
+            <option value="4">4 часа</option>
+            <option value="5">5 часов</option>
+            <option value="6">6 часов</option>
+            <option value="7">7 часов</option>
+            <option value="8">8 часов</option>
+            <option value="9">9 часов</option>
+            <option value="10">10 часов (весь день)</option>
+          </select>
+        </label>
         <label>Имя<input id="bName" type="text" required placeholder="Анна" autocomplete="name"></label>
         <label>Телефон <span class="muted">(или VK)</span>
-          <input id="bPhone" type="tel" placeholder="+7 ..." autocomplete="tel">
+          <input id="bPhone" type="tel" inputmode="tel" placeholder="+7 999 123 45 67" autocomplete="tel">
         </label>
         <label>VK <span class="muted">(или телефон)</span>
           <input id="bVk" type="text" placeholder="vk.com/..." autocomplete="username">
@@ -133,14 +149,14 @@
     </section>
 
     <footer class="book-footer">
-      <p class="muted">Онлайн-запись · Фокус+</p>
+      <p class="muted">© 2026 Фокус+. Все права защищены.</p>
     </footer>
   </div>
 
-  <script src="js/storage.js?v=212"></script>
-  <script src="js/cloud-config.js?v=212"></script>
-  <script src="js/sync.js?v=212"></script>
-  <script src="js/calendar.js?v=212"></script>
-  <script src="js/book.js?v=212"></script>
+  <script src="js/storage.js?v=215"></script>
+  <script src="js/cloud-config.js?v=215"></script>
+  <script src="js/sync.js?v=215"></script>
+  <script src="js/calendar.js?v=215"></script>
+  <script src="js/book.js?v=215"></script>
 </body>
 </html>

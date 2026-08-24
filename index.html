@@ -28,9 +28,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@0.469.0"></script>
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/calendar.css">
-  <link rel="stylesheet" href="css/mobile.css">
+  <link rel="stylesheet" href="css/style.css?v=215">
+  <link rel="stylesheet" href="css/calendar.css?v=215">
+  <link rel="stylesheet" href="css/mobile.css?v=215">
 </head>
 <body>
   <div id="authGate" class="auth-gate hidden" style="display:none !important" hidden aria-hidden="true"></div>
@@ -295,9 +295,13 @@
             <span>Починить приложение (сброс кэша)</span>
           </button>
         </div>
-        <p class="version-tag">Фокус+ · версия 2.0 · без обязательного входа</p>
+        <p class="version-tag">Фокус+ · версия 2.0</p>
       </section>
     </main>
+
+    <footer class="app-copyright">
+      <p>© 2026 Фокус+. Все права защищены.</p>
+    </footer>
 
     <nav class="bottom-nav" aria-label="Основное меню">
       <button type="button" class="nav-btn active" data-view="calendar">
@@ -496,12 +500,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=210"></script>
-  <script src="js/cloud-config.js?v=210"></script>
-  <script src="js/auth.js?v=210"></script>
-  <script src="js/sync.js?v=210"></script>
-  <script src="js/calendar.js?v=210"></script>
-  <script src="js/app.js?v=210"></script>
+  <script src="js/storage.js?v=215"></script>
+  <script src="js/cloud-config.js?v=215"></script>
+  <script src="js/auth.js?v=215"></script>
+  <script src="js/sync.js?v=215"></script>
+  <script src="js/calendar.js?v=215"></script>
+  <script src="js/app.js?v=215"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -511,7 +515,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=210');
+          await navigator.serviceWorker.register('service-worker.js?v=215');
         } catch (e) {}
       });
     }
