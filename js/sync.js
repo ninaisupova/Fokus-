@@ -278,6 +278,7 @@ const FocusSync = (() => {
   function buildPublicMirror(data, prevPublic) {
     const settings = data.settings || {};
     const records = Array.isArray(data.records) ? data.records : [];
+    const trashRecords = (data.trash && data.trash.records) || {};
     const blocks = records
       .filter((r) => r && r.status !== 'cancelled')
       .map((r) => ({
@@ -288,13 +289,12 @@ const FocusSync = (() => {
         status: r.status || 'confirmed',
       }));
 
-    const mine = { ...(prevPublic?.mine || {}) };
+    // Только актуальные записи админа — удалённые не наследуем из prevPublic.mine
+    const mine = {};
     records.forEach((r) => {
       if (!r?.publicToken) return;
-      if (r.status === 'cancelled') {
-        delete mine[r.publicToken];
-        return;
-      }
+      if (r.status === 'cancelled') return;
+      if (trashRecords[r.id]) return;
       mine[r.publicToken] = {
         id: r.id,
         publicToken: r.publicToken,
@@ -317,7 +317,10 @@ const FocusSync = (() => {
     const adminIds = new Set(records.map((r) => r.id));
     const inbox = {};
     Object.entries(prevPublic?.inbox || {}).forEach(([id, rec]) => {
-      if (rec && !adminIds.has(id)) inbox[id] = rec;
+      if (!rec) return;
+      // Уже в кабинете или удалена фотографом — клиенту не показываем
+      if (adminIds.has(id) || trashRecords[id]) return;
+      inbox[id] = rec;
     });
 
     return {
@@ -338,9 +341,12 @@ const FocusSync = (() => {
 
   function mergeInboxIntoAdmin(adminData, publicData) {
     const inbox = publicData?.inbox || {};
+    const trashRecords = (adminData.trash && adminData.trash.records) || {};
     let changed = false;
     Object.values(inbox).forEach((rec) => {
       if (!rec?.id) return;
+      // Не восстанавливать запись, которую фотограф уже удалил
+      if (trashRecords[rec.id]) return;
       const idx = adminData.records.findIndex((r) => r.id === rec.id);
       if (idx < 0) {
         adminData.records.push(rec);
