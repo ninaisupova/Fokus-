@@ -1013,3 +1013,9 @@ body.auth-locked .app {
   visibility: hidden;
   pointer-events: none;
 }
+
+.records-hint {
+  margin: 8px 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}

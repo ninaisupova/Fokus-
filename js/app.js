@@ -556,16 +556,25 @@
       .replace(/"/g, '&quot;');
   }
 
+  function monthPrefixFromCursor() {
+    const y = state.cursor.getFullYear();
+    const m = state.cursor.getMonth();
+    return `${y}-${String(m + 1).padStart(2, '0')}`;
+  }
+
   function filteredRecords() {
     const today = todayISO();
     const tomorrowDate = new Date();
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrow = FocusCalendar.toISODate(tomorrowDate);
+    const monthPrefix = monthPrefixFromCursor();
 
     let list = [...state.data.records];
 
     if (state.filter === 'all') {
       list = list.filter((r) => r.date === state.selectedDate);
+    } else if (state.filter === 'month') {
+      list = list.filter((r) => r.date.startsWith(monthPrefix));
     } else if (state.filter === 'today') {
       list = list.filter((r) => r.date === today);
     } else if (state.filter === 'tomorrow') {
@@ -590,7 +599,12 @@
       list = list.filter((r) => r.date < today);
     }
 
-    return list.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    const sorted = list.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    // Прошедшие — сначала свежие
+    if (state.filter === 'past') return sorted.reverse();
+    // Месяц — от новых к старым удобнее листать историю
+    if (state.filter === 'month') return sorted.reverse();
+    return sorted;
   }
 
   function renderCalendar() {
@@ -607,8 +621,7 @@
       todayISO: todayISO(),
       onSelect: (date) => {
         state.selectedDate = date;
-        state.filter = 'all';
-        $$('#recordFilters .chip').forEach((c) => c.classList.toggle('active', c.dataset.filter === 'all'));
+        setFilter('all');
         render();
       },
     });
@@ -644,7 +657,7 @@
     const box = $('#clientFreeSlots');
     if (!box) return;
 
-    // Блок «как видят клиенты» — только для выбранного дня (фильтр «Все»)
+    // Блок «как видят клиенты» — только для выбранного дня (фильтр «День»)
     if (state.filter !== 'all') {
       box.classList.add('hidden');
       return;
@@ -686,6 +699,21 @@
         ? state.data.notes.filter((n) => n.date === state.selectedDate)
         : [];
 
+    const dayLabel = $('#selectedDayLabel');
+    if (dayLabel) {
+      if (state.filter === 'month') {
+        const y = state.cursor.getFullYear();
+        const m = state.cursor.getMonth();
+        dayLabel.textContent = `· ${FocusCalendar.MONTHS[m]} ${y}`;
+      } else if (state.filter === 'past') {
+        dayLabel.textContent = '· все прошедшие';
+      } else if (state.filter === 'all' && state.selectedDate) {
+        dayLabel.textContent = `· ${FocusCalendar.formatRuDate(state.selectedDate).split(',')[0]}`;
+      } else {
+        dayLabel.textContent = '';
+      }
+    }
+
     const notesHtml = notes
       .map(
         (n) => `
@@ -702,7 +730,13 @@
       .join('');
 
     if (!records.length && !notes.length) {
-      list.innerHTML = '<div class="empty">Записей нет</div>';
+      const emptyText =
+        state.filter === 'month'
+          ? 'В этом месяце записей нет. Листайте стрелку влево — предыдущий месяц.'
+          : state.filter === 'past'
+            ? 'Прошедших записей пока нет'
+            : 'Записей нет';
+      list.innerHTML = `<div class="empty">${emptyText}</div>`;
     } else {
       list.innerHTML = `${records.map(recordCard).join('')}${notesHtml}`;
     }
@@ -800,6 +834,20 @@
     $('#statIncome').textContent = money(income);
     $('#financeMonthLabel').textContent = `${FocusCalendar.MONTHS[m]} ${y}`;
 
+    const monthAll = state.data.records
+      .filter((r) => r.date.startsWith(prefix) && r.status !== 'cancelled')
+      .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
+
+    const monthBox = $('#monthShootsList');
+    if (monthBox) {
+      monthBox.innerHTML = monthAll.length
+        ? monthAll.map(recordCard).join('')
+        : '<div class="empty">В этом месяце съёмок нет. На календаре нажмите ‹ — прошлый месяц.</div>';
+      monthBox.querySelectorAll('.record-card').forEach((card) => {
+        card.addEventListener('click', () => openActionsFor(card.dataset.id));
+      });
+    }
+
     const upcoming = state.data.records
       .filter((r) => r.date >= todayISO() && r.status !== 'cancelled')
       .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
@@ -814,6 +862,24 @@
         card.addEventListener('click', () => openActionsFor(card.dataset.id));
       });
     }
+  }
+
+  function setFilter(filter) {
+    state.filter = filter;
+    $$('#recordFilters .chip').forEach((c) =>
+      c.classList.toggle('active', c.dataset.filter === filter)
+    );
+  }
+
+  function goMonth(delta) {
+    state.cursor = new Date(
+      state.cursor.getFullYear(),
+      state.cursor.getMonth() + delta,
+      1
+    );
+    // При листании месяца сразу показываем все съёмки этого месяца
+    setFilter('month');
+    render();
   }
 
   function renderSettings() {
@@ -838,19 +904,16 @@
 
   function bind() {
     $('#prevMonth')?.addEventListener('click', () => {
-      state.cursor = new Date(state.cursor.getFullYear(), state.cursor.getMonth() - 1, 1);
-      render();
+      goMonth(-1);
     });
     $('#nextMonth')?.addEventListener('click', () => {
-      state.cursor = new Date(state.cursor.getFullYear(), state.cursor.getMonth() + 1, 1);
-      render();
+      goMonth(1);
     });
     $('#todayButton')?.addEventListener('click', () => {
       const now = new Date();
       state.cursor = new Date(now.getFullYear(), now.getMonth(), 1);
       state.selectedDate = todayISO();
-      state.filter = 'all';
-      $$('#recordFilters .chip').forEach((c) => c.classList.toggle('active', c.dataset.filter === 'all'));
+      setFilter('all');
       render();
     });
 
@@ -877,7 +940,7 @@
       if (!chip) return;
       state.filter = chip.dataset.filter;
       $$('#recordFilters .chip').forEach((c) => c.classList.toggle('active', c === chip));
-      renderRecords();
+      render();
     });
 
     $('#clientSearch')?.addEventListener('input', (e) => {

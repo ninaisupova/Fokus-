@@ -101,7 +101,8 @@
           </button>
         </div>
         <div class="filters" id="recordFilters">
-          <button type="button" data-filter="all" class="chip active">Все</button>
+          <button type="button" data-filter="all" class="chip active">День</button>
+          <button type="button" data-filter="month" class="chip">Месяц</button>
           <button type="button" data-filter="today" class="chip">Сегодня</button>
           <button type="button" data-filter="tomorrow" class="chip">Завтра</button>
           <button type="button" data-filter="online" class="chip">Онлайн</button>
@@ -109,6 +110,7 @@
           <button type="button" data-filter="prepay" class="chip">Предоплата есть</button>
           <button type="button" data-filter="past" class="chip">Прошедшие</button>
         </div>
+        <p id="recordsHint" class="muted book-hint records-hint">Листайте стрелки календаря — слева прошлый месяц. Фильтр «Месяц» покажет все съёмки этого месяца.</p>
         <div id="recordsList"></div>
         <div id="clientFreeSlots" class="client-free-slots"></div>
       </section>
@@ -153,6 +155,8 @@
             <strong id="statIncome">0 ₽</strong>
           </article>
         </div>
+        <h3 class="subheading">Съёмки выбранного месяца</h3>
+        <div id="monthShootsList"></div>
         <h3 class="subheading">Ближайшие съёмки</h3>
         <div id="upcomingList"></div>
       </section>
@@ -502,12 +506,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=206"></script>
-  <script src="js/cloud-config.js?v=206"></script>
-  <script src="js/auth.js?v=206"></script>
-  <script src="js/sync.js?v=206"></script>
-  <script src="js/calendar.js?v=206"></script>
-  <script src="js/app.js?v=206"></script>
+  <script src="js/storage.js?v=207"></script>
+  <script src="js/cloud-config.js?v=207"></script>
+  <script src="js/auth.js?v=207"></script>
+  <script src="js/sync.js?v=207"></script>
+  <script src="js/calendar.js?v=207"></script>
+  <script src="js/app.js?v=207"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -517,7 +521,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=206');
+          await navigator.serviceWorker.register('service-worker.js?v=207');
         } catch (e) {}
       });
     }
