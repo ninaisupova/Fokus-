@@ -55,12 +55,21 @@ const FocusAuth = (() => {
       c.includes('INVALID_PASSWORD') ||
       c.includes('INVALID_LOGIN_CREDENTIALS')
     ) {
-      return 'Неверный email или пароль';
+      return 'Неверный email или пароль. Проверьте пользователя в Firebase → Authentication → Users.';
+    }
+    if (c.includes('OPERATION_NOT_ALLOWED')) {
+      return 'В Firebase не включён вход Email/Password: Authentication → Sign-in method → Email/Password → Enable.';
     }
     if (c.includes('USER_DISABLED')) return 'Аккаунт отключён';
     if (c.includes('TOO_MANY_ATTEMPTS')) return 'Слишком много попыток. Подождите немного.';
     if (c.includes('INVALID_EMAIL')) return 'Некорректный email';
-    if (c.includes('API_KEY')) return 'Проверьте apiKey в js/cloud-config.js';
+    if (c.includes('API_KEY_NOT_VALID') || c.includes('INVALID_API_KEY') || c.includes('API_KEY')) {
+      return 'Неверный Web API Key. Проверьте js/cloud-config.js.';
+    }
+    if (c.includes('CONFIGURATION_NOT_FOUND')) {
+      return 'В проекте Firebase не настроена Authentication. Откройте Build → Authentication → Get started.';
+    }
+    if (c) return `Ошибка входа: ${c}`;
     return 'Не удалось войти. Проверьте данные и интернет.';
   }
 
@@ -70,15 +79,20 @@ const FocusAuth = (() => {
       throw new Error('Сначала вставьте Web API Key в js/cloud-config.js (см. FIREBASE_RULES.md).');
     }
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(key)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: String(email || '').trim(),
-        password: String(password || ''),
-        returnSecureToken: true,
-      }),
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: String(email || '').trim(),
+          password: String(password || ''),
+          returnSecureToken: true,
+        }),
+      });
+    } catch {
+      throw new Error('Нет связи с Firebase. Проверьте интернет.');
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(mapAuthError(data?.error?.message));
     const session = {
