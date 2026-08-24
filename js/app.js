@@ -1420,10 +1420,23 @@
     }
   }
 
+  function needsAuthGate() {
+    return (
+      typeof FocusAuth !== 'undefined' &&
+      FocusAuth.requireAuth() &&
+      FocusAuth.authConfigured() &&
+      !FocusAuth.isLoggedIn()
+    );
+  }
+
   function showAuthGate(show) {
     const gate = $('#authGate');
     document.body.classList.toggle('auth-locked', !!show);
-    gate?.classList.toggle('hidden', !show);
+    if (!gate) return;
+    gate.classList.toggle('hidden', !show);
+    gate.hidden = !show;
+    gate.style.display = show ? '' : 'none';
+    gate.setAttribute('aria-hidden', show ? 'false' : 'true');
     if (show) {
       const hint = $('#authHint');
       if (hint) {
@@ -1437,14 +1450,6 @@
       }
       updateAuthUserUI();
     }
-  }
-
-  function needsAuthGate() {
-    return (
-      typeof FocusAuth !== 'undefined' &&
-      FocusAuth.requireAuth() &&
-      !FocusAuth.isLoggedIn()
-    );
   }
 
   function startAppRuntime() {
