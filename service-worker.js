@@ -1,8 +1,9 @@
-const CACHE = 'focusplus-v21-9';
+const CACHE = 'focusplus-v22-0';
 const ASSETS = [
   './',
   './index.html',
   './book.html',
+  './privacy.html',
   './css/style.css',
   './css/calendar.css',
   './css/mobile.css',

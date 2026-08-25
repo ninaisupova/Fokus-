@@ -685,6 +685,7 @@
       const el = $(sel);
       if (!el) return;
       el.href = q ? `privacy.html${q}` : 'privacy.html';
+      el.addEventListener('click', (e) => e.stopPropagation());
     });
   }
 

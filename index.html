@@ -28,9 +28,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@0.469.0"></script>
-  <link rel="stylesheet" href="css/style.css?v=219">
-  <link rel="stylesheet" href="css/calendar.css?v=219">
-  <link rel="stylesheet" href="css/mobile.css?v=219">
+  <link rel="stylesheet" href="css/style.css?v=220">
+  <link rel="stylesheet" href="css/calendar.css?v=220">
+  <link rel="stylesheet" href="css/mobile.css?v=220">
 </head>
 <body>
   <div id="authGate" class="auth-gate hidden" style="display:none !important" hidden aria-hidden="true"></div>
@@ -501,12 +501,12 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=219"></script>
-  <script src="js/cloud-config.js?v=219"></script>
-  <script src="js/auth.js?v=219"></script>
-  <script src="js/sync.js?v=219"></script>
-  <script src="js/calendar.js?v=219"></script>
-  <script src="js/app.js?v=219"></script>
+  <script src="js/storage.js?v=220"></script>
+  <script src="js/cloud-config.js?v=220"></script>
+  <script src="js/auth.js?v=220"></script>
+  <script src="js/sync.js?v=220"></script>
+  <script src="js/calendar.js?v=220"></script>
+  <script src="js/app.js?v=220"></script>
   <script>
     lucide.createIcons();
     if ('serviceWorker' in navigator) {
@@ -516,7 +516,7 @@
           for (const reg of regs) {
             await reg.update();
           }
-          await navigator.serviceWorker.register('service-worker.js?v=219');
+          await navigator.serviceWorker.register('service-worker.js?v=220');
         } catch (e) {}
       });
     }
