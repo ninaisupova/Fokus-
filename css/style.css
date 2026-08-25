@@ -566,6 +566,16 @@ button {
   letter-spacing: 0.01em;
 }
 
+.app-copyright p + p {
+  margin-top: 4px;
+}
+
+.privacy-footer-link {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .bottom-nav {
   position: fixed;
   left: 50%;

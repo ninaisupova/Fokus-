@@ -25,9 +25,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=215">
-  <link rel="stylesheet" href="css/calendar.css?v=215">
-  <link rel="stylesheet" href="css/book.css?v=215">
+  <link rel="stylesheet" href="css/style.css?v=220">
+  <link rel="stylesheet" href="css/calendar.css?v=220">
+  <link rel="stylesheet" href="css/book.css?v=220">
 </head>
 <body class="book-page">
   <div class="book-app">
@@ -111,9 +111,27 @@
         <label>Комментарий
           <textarea id="bComment" rows="3" placeholder="Пожелания к съёмке"></textarea>
         </label>
+
+        <div class="pdn-notice" role="note">
+          <p class="pdn-notice-title">Персональные данные защищены</p>
+          <p>
+            Собираются: имя, телефон и/или ссылка VK, вид съёмки, комментарий, дата и время записи.
+            Данные нужны фотографу для связи и организации съёмки. Они не передаются в ИИ
+            и обрабатываются в соответствии с
+            <a href="privacy.html" id="privacyLinkNotice" target="_blank" rel="noopener">Политикой</a>
+            и Федеральным законом №&nbsp;152-ФЗ «О персональных данных».
+          </p>
+        </div>
+
         <label class="consent-label">
           <input id="bConsent" type="checkbox" required>
-          <span>Согласен(на) на обработку персональных данных для записи на съёмку</span>
+          <span>
+            Даю согласие на обработку указанных персональных данных
+            (ст.&nbsp;6, ст.&nbsp;9 Федерального закона от 27.07.2006 №&nbsp;152-ФЗ)
+            в целях записи на съёмку и связи по заявке.
+            С&nbsp;<a href="privacy.html" id="privacyLinkConsent" target="_blank" rel="noopener">Политикой обработки персональных данных</a>
+            ознакомлен(а).
+          </span>
         </label>
         <button class="save-button" type="submit" id="bookSubmitBtn">Записаться</button>
         <button class="chip-btn" type="button" id="backToSlotsBtn">Назад к времени</button>
@@ -133,14 +151,17 @@
     </section>
 
     <footer class="book-footer">
+      <p class="book-footer-links">
+        <a href="privacy.html" id="privacyLinkFooter">Политика персональных данных (152-ФЗ)</a>
+      </p>
       <p class="muted">© 2026 Фокус+. Все права защищены.</p>
     </footer>
   </div>
 
-  <script src="js/storage.js?v=218"></script>
-  <script src="js/cloud-config.js?v=218"></script>
-  <script src="js/sync.js?v=218"></script>
-  <script src="js/calendar.js?v=218"></script>
-  <script src="js/book.js?v=218"></script>
+  <script src="js/storage.js?v=220"></script>
+  <script src="js/cloud-config.js?v=220"></script>
+  <script src="js/sync.js?v=220"></script>
+  <script src="js/calendar.js?v=220"></script>
+  <script src="js/book.js?v=220"></script>
 </body>
 </html>

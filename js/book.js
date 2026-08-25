@@ -1,6 +1,7 @@
 /* Фокус+ — публичная запись клиентов */
 (() => {
   const MY_KEY = 'focusplus_my_bookings';
+  const CONSENT_VERSION = '1.0';
   const params = new URLSearchParams(location.search);
   const cloudCode = (params.get('c') || params.get('code') || '').trim();
   const manageToken = (params.get('m') || params.get('token') || '').trim();
@@ -433,7 +434,7 @@
       return;
     }
     if (!consent) {
-      showAlert('Нужно согласие на обработку персональных данных');
+      showAlert('Нужно согласие на обработку персональных данных (152-ФЗ)');
       return;
     }
 
@@ -483,7 +484,18 @@
           clientRescheduleCount: 0,
           publicToken,
           source: 'public',
+          consentGiven: true,
           consentAt: now,
+          consentVersion: CONSENT_VERSION,
+          consentLaw: '152-FZ',
+          pdnFields: ['name', 'phone', 'vk', 'type', 'comment', 'date', 'time', 'duration'].filter(
+            (key) => {
+              if (key === 'phone') return Boolean(phone);
+              if (key === 'vk') return Boolean(vk);
+              if (key === 'comment') return Boolean(comment);
+              return true;
+            }
+          ),
           createdAt: now,
           updatedAt: now,
         };
@@ -667,7 +679,17 @@
     }
   }
 
+  function bindPrivacyLinks() {
+    const q = location.search || '';
+    ['#privacyLinkNotice', '#privacyLinkConsent', '#privacyLinkFooter'].forEach((sel) => {
+      const el = $(sel);
+      if (!el) return;
+      el.href = q ? `privacy.html${q}` : 'privacy.html';
+    });
+  }
+
   function bind() {
+    bindPrivacyLinks();
     $('#bookPrevMonth')?.addEventListener('click', () => {
       state.cursor = new Date(state.cursor.getFullYear(), state.cursor.getMonth() - 1, 1);
       renderCalendar();
